@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "graphicsview.h"
 #include "canvas.h"
+#include "util.h"
 #include <QGLWidget>
 
 MainWindow::MainWindow(QWidget *parent, Qt::WFlags flags)
@@ -192,6 +193,7 @@ void MainWindow::CreateStatusBar()
 	statusBar()->addPermanentWidget(canvasStateLabel);
 	statusBar()->addPermanentWidget(fpsLabel);
 	statusBar()->showMessage("Ready");
+	connect(Util::Get(), SIGNAL(StatusMessage(QString)), this, SLOT(OnStatusMessage(QString)));
 }
 
 void MainWindow::CreateDockWidget()
@@ -269,7 +271,6 @@ void MainWindow::InitCanvas()
 
 	// Canvas state changed
 	connect(canvas, SIGNAL(StateChanged(unsigned int)), this, SLOT(OnCanvasStateChanged(unsigned int)));
-	connect(canvas, SIGNAL(StatusMessage(QString)), this, SLOT(OnStatusMessage(QString)));
 	
 	// Draw signal and event signals
 	connect(glscene, SIGNAL(DrawCanvas()), canvas, SLOT(OnDraw()));

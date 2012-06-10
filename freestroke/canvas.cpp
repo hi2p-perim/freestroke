@@ -2,6 +2,7 @@
 #include "model.h"
 #include "timer.h"
 #include "gllib.h"
+#include "util.h"
 #include <QGraphicsScene>
 #include <lbfgs.h>
 
@@ -162,7 +163,7 @@ void Canvas::OnMouseReleased( QGraphicsSceneMouseEvent* event )
 			}
 			else
 			{
-				ShowStatusMessage("Number of stroke points must be larger than 1");
+				Util::Get()->ShowStatusMessage("Number of stroke points must be larger than 1");
 			}
 			SAFE_DELETE(currentStroke);
 			ChangeState(STATE_IDLE);
@@ -315,11 +316,6 @@ void Canvas::OnToggleAABB( int state )
 	enableAABB = state == Qt::Checked;
 }
 
-void Canvas::ShowStatusMessage( QString mes )
-{
-	emit StatusMessage(mes);
-}
-
 void Canvas::OnToolChanged( int id )
 {
 	if (id < 0 || TOOL_NUM <= id)
@@ -468,7 +464,7 @@ bool Stroke::Embed(Stroke2D* stroke)
 		float firstDist = SphereTrace(canvas->camWorldPos, rayDirs[0], canvas->currentLevel, normal);
 		if (firstDist > canvas->farClip)
 		{
-			canvas->ShowStatusMessage("Initial stroke must be on the proxy object");
+			Util::Get()->ShowStatusMessage("Initial stroke must be on the proxy object");
 			return false;
 		}
 
@@ -505,7 +501,7 @@ bool Stroke::Embed(Stroke2D* stroke)
 	}
 
 	double elapsed = (Timer::GetCurrentTimeMilli() - time) / 1000.0f;
-	canvas->ShowStatusMessage(
+	Util::Get()->ShowStatusMessage(
 		(boost::format("Stroke embedding is completed in %.1f seconds") % elapsed).str().c_str());
 
 	return true;
@@ -523,7 +519,7 @@ float Stroke::SphereTrace( const glm::vec3& rayOrigin, const glm::vec3& rayDir, 
 		minDist = canvas->proxyModel->Distance(currentPos, normal) - level;
 		currentPos += minDist * rayDir;
 		sumDist += minDist;
-		canvas->ShowStatusMessage((boost::format("Sphere tracing step #%d: %f") % step % sumDist).str().c_str());
+		Util::Get()->ShowStatusMessage((boost::format("Sphere tracing step #%d: %f") % step % sumDist).str().c_str());
 		step++;
 	} while (minDist > 1e-3 && minDist < canvas->farClip);
 	return sumDist;
@@ -677,7 +673,7 @@ static int LBFGS_Progress( void *instance, const lbfgsfloatval_t *x, const lbfgs
 {
 	Stroke* stroke = (Stroke*)instance;
 	Canvas* canvas = stroke->canvas;
-	canvas->ShowStatusMessage((boost::format("Iteration #%d : E = %f") % k % fx).str().c_str());
+	Util::Get()->ShowStatusMessage((boost::format("Iteration #%d : E = %f") % k % fx).str().c_str());
 	return 0;
 }
 
@@ -702,7 +698,7 @@ std::vector<float> Stroke::Optimize( const std::vector<float>& ts )
 	//param.max_iterations = 300;
 
 	int ret = lbfgs(N, x, NULL, LBFGS_Evaluate, LBFGS_Progress, (void*)this, &param);
-	canvas->ShowStatusMessage((boost::format("L-BFGS optimization finished (%d)") % ret).str().c_str());
+	Util::Get()->ShowStatusMessage((boost::format("L-BFGS optimization finished (%d)") % ret).str().c_str());
 
 	std::vector<float> retts;
 	for (int i = 0; i < N; i++) retts.push_back(x[i]);

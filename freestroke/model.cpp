@@ -1,5 +1,6 @@
 #include "model.h"
 #include "gllib.h"
+#include "util.h"
 
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/AABB_tree.h>
@@ -53,6 +54,8 @@ ObjModel::Impl::Impl( const std::string& path, float size )
 		THROW_EXCEPTION(Exception::FileError, "Failed to open " + path);
 	}
 
+	Util::Get()->ShowStatusMessage("Loading the proxy model");
+
 	std::string line;
 	int lineNum = 1;
 	while (std::getline(ifs, line))
@@ -86,6 +89,8 @@ ObjModel::Impl::Impl( const std::string& path, float size )
 		lineNum++;
 	}
 
+	// ------------------------------------------------------------
+
 	// AABB
 	aabb = new AABB;
 	aabb->min = aabb->max = vertices[0];
@@ -94,6 +99,8 @@ ObjModel::Impl::Impl( const std::string& path, float size )
 		aabb->min = glm::min(aabb->min, vertices[i]);
 		aabb->max = glm::max(aabb->max, vertices[i]);
 	}
+
+	// ------------------------------------------------------------
 
 	// Scale proxy model
 	float len = 0.0f;
@@ -108,7 +115,10 @@ ObjModel::Impl::Impl( const std::string& path, float size )
 	aabb->min = scale * aabb->min;
 	aabb->max = scale * aabb->max;
 
+	// ------------------------------------------------------------
+
 	// Construct AABB tree
+	Util::Get()->ShowStatusMessage("Constructing AABB tree");
 	for (int i = 0; i < faces.size(); i++)
 	{
 		glm::vec3& v0 = vertices[faces[i].x];
@@ -121,6 +131,9 @@ ObjModel::Impl::Impl( const std::string& path, float size )
 	}
 	aabbTree.rebuild(triangles.begin(), triangles.end());
 	aabbTree.accelerate_distance_queries();
+	Util::Get()->ShowStatusMessage("AABB tree is constructed; creating GL triangle mesh");
+
+	// ------------------------------------------------------------
 
 	// Create mesh for GL rendering
 	mesh = new TriangleMesh;

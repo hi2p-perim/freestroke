@@ -40,7 +40,6 @@ public:
 	~Canvas();
 	State GetState() { return state; }
 	bool IsModified() { return modified; }
-	void ShowStatusMessage(QString mes);
 
 public slots:
 
@@ -62,7 +61,6 @@ public slots:
 signals:
 
 	void StateChanged(unsigned int state);
-	void StatusMessage(QString mes);
 
 private:
 
