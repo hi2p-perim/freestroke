@@ -7,6 +7,7 @@ class Canvas;
 
 class CanvasManipulatorWidget;
 class EmbeddingToolWidget;
+class PenToolWidget;
 
 /*!
 	Main window.
@@ -73,6 +74,7 @@ private:
 	// Dock widgets
 	CanvasManipulatorWidget* canvasManipWidget;
 	EmbeddingToolWidget* embeddingToolWidget;
+	PenToolWidget* penToolWidget;
 
 private:
 
@@ -107,11 +109,13 @@ signals:
 
 	void ToggleWireframe(int state);
 	void ToggleAABB(int state);
+	void ToggleGrid(int state);
 
 private:
 
 	QCheckBox* wireframeCheckBox;
 	QCheckBox* aabbCheckBox;
+	QCheckBox* gridCheckBox;
 
 };
 
@@ -160,6 +164,134 @@ private:
 	QSlider* levelSetSlider;
 	QSlider* levelOffsetSlider;
 	QSlider* strokeStepSlider;
+
+};
+
+/*!
+	Flat color widget.
+	The widget is used for displaying current selected color.
+*/
+class FlatColorWidget : public QWidget
+{
+	Q_OBJECT
+
+public:
+
+	FlatColorWidget(QColor color, QWidget* parent = 0);
+
+public slots:
+
+	void SetColor(QColor color);
+
+protected:
+
+	void paintEvent(QPaintEvent* event);
+
+private:
+
+	QColor color;
+
+};
+
+/*!
+	Brush rect item.
+	The class is the brush item for the graphics view
+	in the pen tool widget.
+*/
+class BrushRectItem : public QGraphicsItem
+{
+public:
+
+	BrushRectItem(QRect rect, int id);
+	QRectF boundingRect() const;
+	void setPen(QPen pen) { this->pen = pen; }
+	void setBrush(QBrush brush) { this->brush = brush; }
+	int ID() { return id; }
+
+protected:
+
+	void paint( QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = 0 );
+
+private:
+
+	QPen pen;
+	QBrush brush;
+	QRect rect;
+	int id;
+
+};
+
+/*!
+	Brush scene.
+	The class is the brush selection scene for the graphics view
+	in the pen tool widget.
+*/
+class BrushScene : public QGraphicsScene
+{
+	Q_OBJECT
+
+public:
+
+	BrushScene(int initialID);
+	int CurrentID() { return currentID; }
+
+signals:
+
+	void BrushSelected(int id);
+
+protected:
+
+	void mousePressEvent(QGraphicsSceneMouseEvent *event);
+	void drawForeground( QPainter *painter, const QRectF &rect );
+
+private:
+
+	int currentID;
+
+};
+
+/*!
+	Pen tool widget.
+	Configuration of the stroke rendering.
+*/
+class PenToolWidget : public QWidget
+{
+	Q_OBJECT
+
+public:
+
+	PenToolWidget(QWidget* parent = 0);
+	QSize minimumSizeHint() const;
+	QSize sizeHint() const;
+
+public slots:
+
+	void OnReset();
+	void clicked_ColorSelectButton();
+	void BrushSelected_BrushScene(int id);
+
+signals:
+
+	void BrushColorChanged(QColor color);
+	void BrushChanged(int id);
+	void BrushSizeChanged(int size);
+	void BrushOpacityChanged(int opacity);
+	void BrushSpacingChanged(int spacing);
+
+private:
+
+	QColorDialog* colorDialog;
+	FlatColorWidget* currentColor;
+
+	QGraphicsView* brushView;
+	BrushScene* brushScene;
+
+	QSpinBox* sizeSpinBox;
+	QSpinBox* opacitySpinBox;
+	QSpinBox* spacingSpinBox;
+	QSlider* sizeSlider;
+	QSlider* opacitySlider;
+	QSlider* spacingSlider;
 
 };
 

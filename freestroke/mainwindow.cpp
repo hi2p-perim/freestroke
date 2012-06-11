@@ -218,6 +218,15 @@ void MainWindow::CreateDockWidget()
 	viewMenu->addAction(dock->toggleViewAction());
 	connect(this, SIGNAL(ResetDockWidgets()), embeddingToolWidget, SLOT(OnReset()));
 
+	// Pen tool
+	dock = new QDockWidget("Pen Tool", this);
+	dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+	penToolWidget = new PenToolWidget(dock);
+	dock->setWidget(penToolWidget);
+	addDockWidget(Qt::LeftDockWidgetArea, dock);
+	viewMenu->addAction(dock->toggleViewAction());
+	connect(this, SIGNAL(ResetDockWidgets()), penToolWidget, SLOT(OnReset()));
+
 	SetEnabledDockWidgets(false);
 }
 
@@ -284,12 +293,20 @@ void MainWindow::InitCanvas()
 	// Canvas manipulation
 	connect(canvasManipWidget, SIGNAL(ToggleWireframe(int)), canvas, SLOT(OnToggleWireframe(int)));
 	connect(canvasManipWidget, SIGNAL(ToggleAABB(int)), canvas, SLOT(OnToggleAABB(int)));
+	connect(canvasManipWidget, SIGNAL(ToggleGrid(int)), canvas, SLOT(OnToggleGrid(int)));
 
 	// Embedding tool
 	connect(embeddingToolWidget, SIGNAL(ToolChanged(int)), canvas, SLOT(OnToolChanged(int)));
 	connect(embeddingToolWidget, SIGNAL(LevelChanged(double)), canvas, SLOT(OnLevelChanged(double)));
 	connect(embeddingToolWidget, SIGNAL(LevelOffsetChanged(double)), canvas, SLOT(OnLevelOffsetChanged(double)));
 	connect(embeddingToolWidget, SIGNAL(StrokeStepChanged(int)), canvas, SLOT(OnStrokeStepChanged(int)));
+
+	// Pen tool
+	connect(penToolWidget, SIGNAL(BrushColorChanged(QColor)), canvas, SLOT(OnBrushColorChanged(QColor)));
+	connect(penToolWidget, SIGNAL(BrushChanged(int)), canvas, SLOT(OnBrushChanged(int)));
+	connect(penToolWidget, SIGNAL(BrushSizeChanged(int)), canvas, SLOT(OnBrushSizeChanged(int)));
+	connect(penToolWidget, SIGNAL(BrushOpacityChanged(int)), canvas, SLOT(OnBrushOpacityChanged(int)));
+	connect(penToolWidget, SIGNAL(BrushSpacingChanged(int)), canvas, SLOT(OnBrushSpacingChanged(int)));
 
 	SetEnabledDockWidgets(true);
 	emit ResetDockWidgets();
@@ -299,6 +316,7 @@ void MainWindow::SetEnabledDockWidgets( bool enable )
 {
 	canvasManipWidget->setEnabled(enable);
 	embeddingToolWidget->setEnabled(enable);
+	penToolWidget->setEnabled(enable);
 }
 
 void MainWindow::OnStatusMessage( QString mes )
@@ -315,11 +333,14 @@ CanvasManipulatorWidget::CanvasManipulatorWidget( QWidget *parent /*= 0*/ )
 	connect(wireframeCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleWireframe(int)));
 	aabbCheckBox = new QCheckBox("AABB");
 	connect(aabbCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleAABB(int)));
+	gridCheckBox = new QCheckBox("Grid");
+	connect(gridCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleGrid(int)));
 
 	// Main layout
 	QVBoxLayout* layout = new QVBoxLayout;
 	layout->addWidget(wireframeCheckBox);
 	layout->addWidget(aabbCheckBox);
+	layout->addWidget(gridCheckBox);
 	layout->addStretch(0);
 	setLayout(layout);
 }
@@ -336,26 +357,26 @@ QSize CanvasManipulatorWidget::sizeHint() const
 
 void CanvasManipulatorWidget::OnReset()
 {
-	wireframeCheckBox->setCheckState(Qt::Unchecked);
-	emit ToggleWireframe(Qt::Unchecked);
-	aabbCheckBox->setCheckState(Qt::Unchecked);
-	emit ToggleAABB(Qt::Unchecked);
+	emit ToggleWireframe(wireframeCheckBox->checkState());
+	emit ToggleAABB(aabbCheckBox->checkState());
+	emit ToggleGrid(gridCheckBox->checkState());
 }
 
 // ------------------------------------------------------------
 
 EmbeddingToolWidget::EmbeddingToolWidget( QWidget* parent /*= 0*/ )
+	: QWidget(parent)
 {
 	minLevel = -10.0;
 	maxLevel = 10.0;
 	sliderValueOffset = 100.0;
 
 	// Tool selection buttons
+	QHBoxLayout* hl1 = new QHBoxLayout;
 	levelRadioButton = new QRadioButton("Level");
 	hairRadioButton = new QRadioButton("Hair");
 	featherRadioButton = new QRadioButton("Feather");
 	toolButtonGroup = new QButtonGroup;
-	QHBoxLayout* hl1 = new QHBoxLayout;
 	toolButtonGroup->addButton(levelRadioButton);
 	toolButtonGroup->setId(levelRadioButton, 0);
 	toolButtonGroup->addButton(hairRadioButton);
@@ -443,14 +464,10 @@ QSize EmbeddingToolWidget::sizeHint() const
 
 void EmbeddingToolWidget::OnReset()
 {
-	levelRadioButton->setChecked(true);
-	emit ToolChanged(toolButtonGroup->id(levelRadioButton));
-	levelSetSpinBox->setValue(0.0);
-	emit LevelChanged(0.0);
-	levelOffsetSpinBox->setValue(0.0);
-	emit LevelOffsetChanged(0.0);
-	strokeStepSpinBox->setValue(5);
-	emit StrokeStepChanged(5);
+	emit ToolChanged(toolButtonGroup->checkedId());
+	emit LevelChanged(levelSetSpinBox->value());
+	emit LevelOffsetChanged(levelOffsetSpinBox->value());
+	emit StrokeStepChanged(strokeStepSpinBox->value());
 }
 
 void EmbeddingToolWidget::valueChanged_LevelSetSlider( int n )
@@ -471,4 +488,221 @@ void EmbeddingToolWidget::valueChanged_LevelSetSpinBox( double d )
 void EmbeddingToolWidget::valueChanged_LevelOffsetSpinBox( double d )
 {
 	levelOffsetSlider->setValue((int)(d * sliderValueOffset));
+}
+
+// ------------------------------------------------------------
+
+FlatColorWidget::FlatColorWidget( QColor color, QWidget* parent /*= 0*/ )
+	: QWidget(parent)
+	, color(color)
+{
+	
+}
+
+void FlatColorWidget::paintEvent( QPaintEvent* event )
+{
+	QPainter painter(this);
+	painter.setBrush(QBrush(color));
+	painter.drawRect(0, 0, width(), height());
+}
+
+void FlatColorWidget::SetColor( QColor color )
+{
+	this->color = color;
+	repaint();
+}
+
+// ------------------------------------------------------------
+
+BrushRectItem::BrushRectItem( QRect rect, int id )
+	: rect(rect)
+	, id(id)
+{
+
+}
+
+QRectF BrushRectItem::boundingRect() const
+{
+	return rect;
+}
+
+void BrushRectItem::paint( QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget /*= 0 */ )
+{
+	painter->setPen(pen);
+	painter->setBrush(brush);
+	painter->drawRect(rect);
+}
+
+// ------------------------------------------------------------
+
+BrushScene::BrushScene(int initialID)
+	: currentID(initialID)
+{
+
+}
+
+void BrushScene::mousePressEvent( QGraphicsSceneMouseEvent *event )
+{
+	QList<QGraphicsItem*> itemList = items(event->scenePos());
+	if (itemList.empty())
+	{
+		event->ignore();
+	}
+	else
+	{	
+		BrushRectItem* item = dynamic_cast<BrushRectItem*>(itemList[0]);
+		currentID = item->ID();
+		emit BrushSelected(currentID);
+		event->accept();
+		QTimer::singleShot(10, this, SLOT(update()));
+	}
+}
+
+void BrushScene::drawForeground( QPainter *painter, const QRectF &rect )
+{
+	painter->setPen(QPen(Qt::black));
+	painter->setBrush(QBrush(Qt::transparent));
+	int x = currentID % 4, y = currentID / 4;
+	painter->drawRect(x * 30, y * 30, 30, 30);
+}
+
+// ------------------------------------------------------------
+
+PenToolWidget::PenToolWidget( QWidget* parent /*= 0*/ )
+	: QWidget(parent)
+{
+	// Current color
+	colorDialog = new QColorDialog(QColor(0, 0, 0), this);
+	QHBoxLayout* hl1 = new QHBoxLayout;
+	QPushButton* colorSelectButton = new QPushButton("...");
+	colorSelectButton->setFixedSize(20, 20);
+	currentColor = new FlatColorWidget(colorDialog->currentColor());
+	currentColor->setFixedSize(20, 20);
+	hl1->addWidget(new QLabel("Color :"));
+	hl1->addStretch(0);
+	hl1->addWidget(currentColor);
+	hl1->addWidget(colorSelectButton);
+	connect(colorSelectButton, SIGNAL(clicked()), this, SLOT(clicked_ColorSelectButton()));
+
+	// Brush view
+	Util::Get()->CreateBrushPathList();
+	QHBoxLayout* hl5 = new QHBoxLayout;
+	brushScene = new BrushScene(0);
+	for (int i = 0; i < Util::Get()->GetBrushNum(); i++)
+	{
+		int x = i % 4, y = i / 4;
+		QPixmap pixmap(Util::Get()->GetBrushPath(i));
+		pixmap = pixmap.scaled(QSize(30, 30));
+		BrushRectItem* rectItem = new BrushRectItem(QRect(0, 0, 30, 30), i);
+		rectItem->setPen(QPen(Qt::lightGray));
+		rectItem->setBrush(QBrush(pixmap));
+		rectItem->setPos(x * 30, y * 30);
+		brushScene->addItem(rectItem);
+	}
+	brushView = new QGraphicsView;
+	brushView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	brushView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	brushView->setScene(brushScene);
+	brushView->setSceneRect(0, 0, 120, 120);
+	brushView->setFixedSize(123, 123);
+	hl5->addWidget(new QLabel("Brush :"));
+	hl5->addStretch(0);
+	hl5->addWidget(brushView);
+	connect(brushScene, SIGNAL(BrushSelected(int)), this, SLOT(BrushSelected_BrushScene(int)));
+
+	// Size
+	QHBoxLayout* hl2 = new QHBoxLayout;
+	sizeSpinBox = new QSpinBox;
+	sizeSlider = new QSlider(Qt::Horizontal);
+	sizeSpinBox->setMinimumWidth(75);
+	sizeSpinBox->setRange(1, 100);
+	sizeSpinBox->setValue(100);
+	sizeSlider->setRange(sizeSpinBox->minimum(), sizeSpinBox->maximum());
+	sizeSlider->setValue(sizeSpinBox->value());
+	hl2->addWidget(new QLabel("Size :"));
+	hl2->addStretch(0);
+	hl2->addWidget(sizeSpinBox);
+	connect(sizeSpinBox, SIGNAL(valueChanged(int)), this, SIGNAL(BrushSizeChanged(int)));
+	connect(sizeSpinBox, SIGNAL(valueChanged(int)), sizeSlider, SLOT(setValue(int)));
+	connect(sizeSlider, SIGNAL(valueChanged(int)), sizeSpinBox, SLOT(setValue(int)));
+
+	// Opacity
+	QHBoxLayout* hl3 = new QHBoxLayout;
+	opacitySpinBox = new QSpinBox;
+	opacitySlider = new QSlider(Qt::Horizontal);
+	opacitySpinBox->setMinimumWidth(75);
+	opacitySpinBox->setRange(0, 100);
+	opacitySpinBox->setValue(0);
+	opacitySlider->setRange(opacitySpinBox->minimum(), opacitySpinBox->maximum());
+	opacitySlider->setValue(opacitySpinBox->value());
+	hl3->addWidget(new QLabel("Opacity :"));
+	hl3->addStretch(0);
+	hl3->addWidget(opacitySpinBox);
+	connect(opacitySpinBox, SIGNAL(valueChanged(int)), this, SIGNAL(BrushOpacityChanged(int)));
+	connect(opacitySpinBox, SIGNAL(valueChanged(int)), opacitySlider, SLOT(setValue(int)));
+	connect(opacitySlider, SIGNAL(valueChanged(int)), opacitySpinBox, SLOT(setValue(int)));
+
+	// Spacing
+	QHBoxLayout* hl4 = new QHBoxLayout;
+	spacingSpinBox = new QSpinBox;
+	spacingSlider = new QSlider(Qt::Horizontal);
+	spacingSpinBox->setMinimumWidth(75);
+	spacingSpinBox->setRange(0, 100);
+	spacingSpinBox->setValue(10);
+	spacingSlider->setRange(spacingSpinBox->minimum(), spacingSpinBox->maximum());
+	spacingSlider->setValue(spacingSpinBox->value());
+	hl4->addWidget(new QLabel("Spacing :"));
+	hl4->addStretch(0);
+	hl4->addWidget(spacingSpinBox);
+	connect(spacingSpinBox, SIGNAL(valueChanged(int)), this, SIGNAL(BrushSpacingChanged(int)));
+	connect(spacingSpinBox, SIGNAL(valueChanged(int)), spacingSlider, SLOT(setValue(int)));
+	connect(spacingSlider, SIGNAL(valueChanged(int)), spacingSpinBox, SLOT(setValue(int)));
+
+	// Main layout
+	QVBoxLayout* layout = new QVBoxLayout;
+	layout->addLayout(hl1);
+	layout->addLayout(hl5);
+	layout->addLayout(hl2);
+	layout->addWidget(sizeSlider);
+	layout->addLayout(hl3);
+	layout->addWidget(opacitySlider);
+	layout->addLayout(hl4);
+	layout->addWidget(spacingSlider);
+	layout->addStretch(0);
+	setLayout(layout);
+}
+
+QSize PenToolWidget::minimumSizeHint() const
+{
+	return QSize(200, 500);
+}
+
+QSize PenToolWidget::sizeHint() const
+{
+	return QSize(200, 500);
+}
+
+void PenToolWidget::OnReset()
+{
+	emit BrushColorChanged(colorDialog->currentColor());
+	emit BrushChanged(brushScene->CurrentID());
+	emit BrushSizeChanged(sizeSpinBox->value());
+	emit BrushOpacityChanged(opacitySpinBox->value());
+	emit BrushSpacingChanged(spacingSpinBox->value());
+}
+
+void PenToolWidget::clicked_ColorSelectButton()
+{
+	if (!colorDialog->exec())
+	{
+		return;
+	}
+	colorDialog->setCurrentColor(colorDialog->selectedColor());
+	currentColor->SetColor(colorDialog->currentColor());
+	emit BrushColorChanged(colorDialog->currentColor());
+}
+
+void PenToolWidget::BrushSelected_BrushScene(int id)
+{
+	emit BrushChanged(id);
 }

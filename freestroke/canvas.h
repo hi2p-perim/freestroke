@@ -53,10 +53,16 @@ public slots:
 	void OnWheelEvent(QGraphicsSceneWheelEvent* event);
 	void OnToggleWireframe(int state);
 	void OnToggleAABB(int state);
+	void OnToggleGrid(int state);
 	void OnToolChanged(int id);
 	void OnLevelChanged(double level);
 	void OnLevelOffsetChanged(double level);
 	void OnStrokeStepChanged(int step);
+	void OnBrushColorChanged(QColor color);
+	void OnBrushChanged(int id);
+	void OnBrushSizeChanged(int size);
+	void OnBrushOpacityChanged(int opacity);
+	void OnBrushSpacingChanged(int spacing);
 
 signals:
 
@@ -102,6 +108,14 @@ public:
 	// View state
 	bool enableWireframe;
 	bool enableAABB;
+	bool enableGrid;
+
+	// Brush state
+	QColor brushColor;
+	int brushID;
+	int brushSize;
+	int brushOpacity;
+	int brushSpacing;
 
 	// Stroke embedding
 	EmbeddingTool currentTool;

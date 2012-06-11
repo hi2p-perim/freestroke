@@ -112,7 +112,7 @@ void Canvas::OnMousePressed( QGraphicsSceneMouseEvent* event )
 		{
 			ChangeState(STATE_STROKING);
 			currentStroke = new Stroke2D(this);
-			currentStrokeSteps = 0;
+			currentStrokeSteps = strokeSteps; // First stroke point is the clicked point
 			event->accept();
 			return;
 		}
@@ -283,6 +283,17 @@ void Canvas::OnDraw()
 	// ------------------------------------------------------------
 
 	//
+	// Grid rendering
+	//
+
+	if (enableGrid)
+	{
+
+	}
+
+	// ------------------------------------------------------------
+
+	//
 	// Stroke rendering
 	//
 
@@ -316,6 +327,11 @@ void Canvas::OnToggleAABB( int state )
 	enableAABB = state == Qt::Checked;
 }
 
+void Canvas::OnToggleGrid( int state )
+{
+	enableGrid = state == Qt::Checked;
+}
+
 void Canvas::OnToolChanged( int id )
 {
 	if (id < 0 || TOOL_NUM <= id)
@@ -339,6 +355,31 @@ void Canvas::OnLevelOffsetChanged( double level )
 void Canvas::OnStrokeStepChanged( int step )
 {
 	strokeSteps = step;
+}
+
+void Canvas::OnBrushColorChanged( QColor color )
+{
+	brushColor = color;
+}
+
+void Canvas::OnBrushChanged( int id )
+{
+	brushID = id;
+}
+
+void Canvas::OnBrushSizeChanged( int size )
+{
+	brushSize = size;
+}
+
+void Canvas::OnBrushOpacityChanged( int opacity )
+{
+	brushOpacity = opacity;
+}
+
+void Canvas::OnBrushSpacingChanged( int spacing )
+{
+	brushSpacing = spacing;
 }
 
 // ------------------------------------------------------------

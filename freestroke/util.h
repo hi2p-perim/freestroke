@@ -29,10 +29,17 @@ public:
 public:
 
 	void ShowStatusMessage(QString mes);
+	void CreateBrushPathList();
+	QString GetBrushPath(int index) { return brushPathList[index]; }
+	int GetBrushNum() { return brushPathList.size(); }
 
 signals:
 
 	void StatusMessage(QString mes);
+
+private:
+
+	std::vector<QString> brushPathList;
 
 };
 
