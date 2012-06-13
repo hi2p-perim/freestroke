@@ -37,7 +37,7 @@ QSize GraphicsView::minimumSizeHint() const
 
 QSize GraphicsView::sizeHint() const
 {
-	return QSize(500, 500);
+	return QSize(800, 600);
 }
 
 void GLScene::drawBackground( QPainter* painter, const QRectF& rect )

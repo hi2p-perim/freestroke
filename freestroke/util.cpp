@@ -2,7 +2,7 @@
 
 Util::Util()
 {
-
+	brushSize = 128;
 }
 
 void Util::ShowStatusMessage( QString mes )
@@ -16,18 +16,24 @@ void Util::CreateBrushPathList()
 	if (brushDir.exists())
 	{
 		QStringList filters;
-		filters << "*.png";
+		//filters << "*.png";
 		QFileInfoList infoList = brushDir.entryInfoList(filters, QDir::Files, QDir::Name);
 		QListIterator<QFileInfo> it(infoList);
 		while (it.hasNext())
 		{
 			QString path = it.next().absoluteFilePath();
 			QImage image(path);
+			if (image.width() != brushSize || image.height() != brushSize)
+			{
+				ShowStatusMessage("Invalid brush image size: " + path);
+				brushPathList.clear();
+				return;
+			}
 			brushPathList.push_back(path);
 		}
 	}
 	else
 	{
-		ShowStatusMessage("Path brushes does not exist");
+		ShowStatusMessage("Brush path does not exist");
 	}
 }

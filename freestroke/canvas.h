@@ -6,6 +6,25 @@ class ObjModel;
 class Stroke2D;
 class Stroke;
 class Camera;
+class Texture2D;
+class Texture2DArray;
+class QuadMesh;
+
+/*!
+	Stroke point.
+*/
+struct StrokePoint
+{
+	StrokePoint(const glm::vec3& position, const glm::vec4& color, int id, float size)
+		: position(position)
+		, color(color)
+		, id(id)
+		, size(size) {}
+	glm::vec3 position;
+	glm::vec4 color; // brush opacity term is included in the color
+	int id;
+	float size;
+};
 
 /*!
 	Canvas.
@@ -51,26 +70,41 @@ public slots:
 	void OnMouseReleased(QGraphicsSceneMouseEvent* event);
 	void OnMouseMoved(QGraphicsSceneMouseEvent* event);
 	void OnWheelEvent(QGraphicsSceneWheelEvent* event);
+
 	void OnToggleWireframe(int state);
 	void OnToggleAABB(int state);
 	void OnToggleGrid(int state);
+	void OnToggleParticle(int state);
+	void OnToggleStrokeLine(int state);
+	void OnToggleCurrentStrokeLine(int state);
+	void OnResetViewButtonClicked();
+	void OnToggleBackground(int state);
+	void OnChangeBackgroundImage(QString path);
+
 	void OnToolChanged(int id);
 	void OnLevelChanged(double level);
 	void OnLevelOffsetChanged(double level);
 	void OnStrokeStepChanged(int step);
+
 	void OnBrushColorChanged(QColor color);
 	void OnBrushChanged(int id);
 	void OnBrushSizeChanged(int size);
 	void OnBrushOpacityChanged(int opacity);
-	void OnBrushSpacingChanged(int spacing);
+	void OnBrushSpacingChanged(double spacing);
 
 signals:
 
 	void StateChanged(unsigned int state);
+	void StrokeStateChanged(int strokeNum, int particleNum);
 
 private:
 
 	void ChangeState(State nextState);
+	void DrawGrid(const glm::mat4& mvpMatrix);
+	void LoadBrushTexture();
+	void DrawBackground();
+	void DrawStrokes();
+	void DrawCurrentStroke();
 
 public:
 
@@ -84,7 +118,7 @@ public:
 	// ------------------------------------------------------------
 
 	// Strokes
-	Stroke2D* currentStroke;
+	std::vector<StrokePoint> currentStrokePoints;
 	std::vector<Stroke*> strokeList;
 
 	// ------------------------------------------------------------
@@ -93,6 +127,8 @@ public:
 	ObjModel* proxyModel;
 	GlslShader* renderShader;
 	GlslShader* flatShader;
+	GlslShader* flatTexShader;
+	GlslShader* strokePointShader;
 
 	// ------------------------------------------------------------
 
@@ -109,13 +145,22 @@ public:
 	bool enableWireframe;
 	bool enableAABB;
 	bool enableGrid;
+	bool enableParticle;
+	bool enableStrokeLine;
+	bool enableCurrentStrokeLine;
+
+	// Background
+	QuadMesh* quad;
+	bool enableBackgroundTexture;
+	Texture2D* backgroundTexture;
 
 	// Brush state
-	QColor brushColor;
+	Texture2DArray* brushTextures;
+	glm::vec3 brushColor;
 	int brushID;
-	int brushSize;
-	int brushOpacity;
-	int brushSpacing;
+	float brushSize;
+	float brushOpacity;
+	float brushSpacing;
 
 	// Stroke embedding
 	EmbeddingTool currentTool;
@@ -144,25 +189,6 @@ public:
 };
 
 /*!
-	2D Stroke.
-	The class holds the 2D points of the stroke.
-*/
-class Stroke2D
-{
-public:
-
-	Stroke2D(Canvas* canvas);
-	void Draw();
-	void AddStroke(const glm::vec2& point);
-
-public:
-
-	Canvas* canvas;
-	std::vector<glm::vec2> strokePoints;
-
-};
-
-/*!
 	Stroke.
 	The class describes single stroke.
 */
@@ -170,9 +196,9 @@ class Stroke
 {
 public:
 	
-	Stroke(Canvas* canvas);
+	Stroke(Canvas* canvas, float brushSpacing);
 	void Draw();
-	bool Embed(Stroke2D* stroke);
+	bool Embed(const std::vector<StrokePoint>& points);
 
 protected:
 
@@ -182,7 +208,9 @@ protected:
 public:
 
 	Canvas* canvas;
-	std::vector<glm::vec3> strokePoints;
+	std::vector<StrokePoint> strokePoints;
+	float brushSpacing;
+
 	// The fixed point used for the hair and feather tools
 	glm::vec3 rootPoint;
 

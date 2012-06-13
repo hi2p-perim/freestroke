@@ -190,7 +190,9 @@ void MainWindow::CreateStatusBar()
 {
 	fpsLabel = new QLabel();
 	canvasStateLabel = new QLabel();
+	strokeStateLabel = new QLabel();
 	statusBar()->addPermanentWidget(canvasStateLabel);
+	statusBar()->addPermanentWidget(strokeStateLabel);
 	statusBar()->addPermanentWidget(fpsLabel);
 	statusBar()->showMessage("Ready");
 	connect(Util::Get(), SIGNAL(StatusMessage(QString)), this, SLOT(OnStatusMessage(QString)));
@@ -280,7 +282,8 @@ void MainWindow::InitCanvas()
 
 	// Canvas state changed
 	connect(canvas, SIGNAL(StateChanged(unsigned int)), this, SLOT(OnCanvasStateChanged(unsigned int)));
-	
+	connect(canvas, SIGNAL(StrokeStateChanged(int, int)), this, SLOT(OnStrokeStateChanged(int, int)));
+
 	// Draw signal and event signals
 	connect(glscene, SIGNAL(DrawCanvas()), canvas, SLOT(OnDraw()));
 	connect(glscene, SIGNAL(KeyPressed(QKeyEvent*)), canvas, SLOT(OnKeyPressed(QKeyEvent*)));
@@ -294,6 +297,12 @@ void MainWindow::InitCanvas()
 	connect(canvasManipWidget, SIGNAL(ToggleWireframe(int)), canvas, SLOT(OnToggleWireframe(int)));
 	connect(canvasManipWidget, SIGNAL(ToggleAABB(int)), canvas, SLOT(OnToggleAABB(int)));
 	connect(canvasManipWidget, SIGNAL(ToggleGrid(int)), canvas, SLOT(OnToggleGrid(int)));
+	connect(canvasManipWidget, SIGNAL(ToggleParticle(int)), canvas, SLOT(OnToggleParticle(int)));
+	connect(canvasManipWidget, SIGNAL(ToggleStrokeLine(int)), canvas, SLOT(OnToggleStrokeLine(int)));
+	connect(canvasManipWidget, SIGNAL(ToggleCurrentStrokeLine(int)), canvas, SLOT(OnToggleCurrentStrokeLine(int)));
+	connect(canvasManipWidget, SIGNAL(ResetViewButtonClicked()), canvas, SLOT(OnResetViewButtonClicked()));
+	connect(canvasManipWidget, SIGNAL(ToggleBackground(int)), canvas, SLOT(OnToggleBackground(int)));
+	connect(canvasManipWidget, SIGNAL(ChangeBackgroundImage(QString)), canvas, SLOT(OnChangeBackgroundImage(QString)));
 
 	// Embedding tool
 	connect(embeddingToolWidget, SIGNAL(ToolChanged(int)), canvas, SLOT(OnToolChanged(int)));
@@ -306,7 +315,7 @@ void MainWindow::InitCanvas()
 	connect(penToolWidget, SIGNAL(BrushChanged(int)), canvas, SLOT(OnBrushChanged(int)));
 	connect(penToolWidget, SIGNAL(BrushSizeChanged(int)), canvas, SLOT(OnBrushSizeChanged(int)));
 	connect(penToolWidget, SIGNAL(BrushOpacityChanged(int)), canvas, SLOT(OnBrushOpacityChanged(int)));
-	connect(penToolWidget, SIGNAL(BrushSpacingChanged(int)), canvas, SLOT(OnBrushSpacingChanged(int)));
+	connect(penToolWidget, SIGNAL(BrushSpacingChanged(double)), canvas, SLOT(OnBrushSpacingChanged(double)));
 
 	SetEnabledDockWidgets(true);
 	emit ResetDockWidgets();
@@ -324,35 +333,73 @@ void MainWindow::OnStatusMessage( QString mes )
 	statusBar()->showMessage(mes);
 }
 
+void MainWindow::OnStrokeStateChanged( int strokeNum, int particleNum )
+{
+	strokeStateLabel->setText(
+		(boost::format("Stroke: %d Particle: %d") % strokeNum % particleNum).str().c_str());
+}
+
 // ------------------------------------------------------------
 
 CanvasManipulatorWidget::CanvasManipulatorWidget( QWidget *parent /*= 0*/ )
 	: QWidget(parent)
 {
+	// Canvas setting
+	QGridLayout* gl1 = new QGridLayout;
 	wireframeCheckBox = new QCheckBox("Wireframe");
-	connect(wireframeCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleWireframe(int)));
 	aabbCheckBox = new QCheckBox("AABB");
-	connect(aabbCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleAABB(int)));
 	gridCheckBox = new QCheckBox("Grid");
+	particleCheckBox = new QCheckBox("Particle");
+	strokeLineCheckBox = new QCheckBox("Stroke");
+	currentStrokeLineCheckBox = new QCheckBox("Current Stroke");
+	gl1->addWidget(wireframeCheckBox, 0, 0);
+	gl1->addWidget(aabbCheckBox, 0, 1);
+	gl1->addWidget(gridCheckBox, 1, 0);
+	gl1->addWidget(particleCheckBox, 1, 1);
+	gl1->addWidget(strokeLineCheckBox, 2, 0);
+	gl1->addWidget(currentStrokeLineCheckBox, 2, 1);
+	particleCheckBox->setChecked(true);
+	currentStrokeLineCheckBox->setChecked(true);
+	connect(wireframeCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleWireframe(int)));
+	connect(aabbCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleAABB(int)));
 	connect(gridCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleGrid(int)));
+	connect(particleCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleParticle(int)));
+	connect(strokeLineCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleStrokeLine(int)));
+	connect(currentStrokeLineCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleCurrentStrokeLine(int)));
+
+	// Reset view
+	QPushButton* resetViewButton = new QPushButton("Reset View");
+	connect(resetViewButton, SIGNAL(clicked()), this, SIGNAL(ResetViewButtonClicked()));
+
+	// Background
+	QHBoxLayout* hl1 = new QHBoxLayout;
+	backgroundCheckBox = new QCheckBox("Background");
+	findBackgroundImageButton = new QPushButton("...");
+	findBackgroundImageButton->setFixedSize(20, 20);
+	findBackgroundImageButton->setDisabled(true);
+	hl1->addWidget(backgroundCheckBox);
+	hl1->addStretch(0);
+	hl1->addWidget(findBackgroundImageButton);
+	connect(backgroundCheckBox, SIGNAL(stateChanged(int)), this, SLOT(stateChanged_BackgroundCheckBox(int)));
+	connect(findBackgroundImageButton, SIGNAL(clicked()), this, SLOT(clicked_FindBackgroundImageButton()));
 
 	// Main layout
 	QVBoxLayout* layout = new QVBoxLayout;
-	layout->addWidget(wireframeCheckBox);
-	layout->addWidget(aabbCheckBox);
-	layout->addWidget(gridCheckBox);
+	layout->addLayout(gl1);
+	layout->addLayout(hl1);
+	layout->addWidget(resetViewButton);
 	layout->addStretch(0);
 	setLayout(layout);
 }
 
 QSize CanvasManipulatorWidget::minimumSizeHint() const
 {
-	return QSize(200, 100);
+	return QSize(200, 200);
 }
 
 QSize CanvasManipulatorWidget::sizeHint() const
 {
-	return QSize(200, 100);
+	return QSize(200, 200);
 }
 
 void CanvasManipulatorWidget::OnReset()
@@ -360,6 +407,37 @@ void CanvasManipulatorWidget::OnReset()
 	emit ToggleWireframe(wireframeCheckBox->checkState());
 	emit ToggleAABB(aabbCheckBox->checkState());
 	emit ToggleGrid(gridCheckBox->checkState());
+	emit ToggleParticle(particleCheckBox->checkState());
+	emit ToggleStrokeLine(strokeLineCheckBox->checkState());
+	emit ToggleCurrentStrokeLine(currentStrokeLineCheckBox->checkState());
+	emit ToggleBackground(backgroundCheckBox->checkState());
+	emit ChangeBackgroundImage(backgroundImagePath);
+}
+
+void CanvasManipulatorWidget::stateChanged_BackgroundCheckBox( int state )
+{
+	if (state == Qt::Checked)
+	{
+		findBackgroundImageButton->setEnabled(true);
+	}
+	else
+	{
+		findBackgroundImageButton->setDisabled(true);
+	}
+	emit ToggleBackground(state);
+}
+
+void CanvasManipulatorWidget::clicked_FindBackgroundImageButton()
+{
+	QFileDialog dialog;
+	dialog.setFileMode(QFileDialog::ExistingFile);
+	dialog.setNameFilter("Image (*.png)");
+	dialog.setWindowTitle("Select a background image");
+	if (dialog.exec())
+	{
+		backgroundImagePath = dialog.selectedFiles()[0];
+		emit ChangeBackgroundImage(backgroundImagePath);
+	}
 }
 
 // ------------------------------------------------------------
@@ -429,7 +507,7 @@ EmbeddingToolWidget::EmbeddingToolWidget( QWidget* parent /*= 0*/ )
 	strokeStepSlider = new QSlider(Qt::Horizontal);
 	strokeStepSpinBox->setMinimumWidth(75);
 	strokeStepSpinBox->setRange(0, 10);
-	strokeStepSpinBox->setValue(5);
+	strokeStepSpinBox->setValue(3);
 	strokeStepSlider->setRange(strokeStepSpinBox->minimum(), strokeStepSpinBox->maximum());
 	strokeStepSlider->setValue(strokeStepSpinBox->value());
 	hl4->addWidget(new QLabel("Stroke Step :"));
@@ -615,8 +693,8 @@ PenToolWidget::PenToolWidget( QWidget* parent /*= 0*/ )
 	sizeSpinBox = new QSpinBox;
 	sizeSlider = new QSlider(Qt::Horizontal);
 	sizeSpinBox->setMinimumWidth(75);
-	sizeSpinBox->setRange(1, 100);
-	sizeSpinBox->setValue(100);
+	sizeSpinBox->setRange(1, 50);
+	sizeSpinBox->setValue(10);
 	sizeSlider->setRange(sizeSpinBox->minimum(), sizeSpinBox->maximum());
 	sizeSlider->setValue(sizeSpinBox->value());
 	hl2->addWidget(new QLabel("Size :"));
@@ -632,7 +710,8 @@ PenToolWidget::PenToolWidget( QWidget* parent /*= 0*/ )
 	opacitySlider = new QSlider(Qt::Horizontal);
 	opacitySpinBox->setMinimumWidth(75);
 	opacitySpinBox->setRange(0, 100);
-	opacitySpinBox->setValue(0);
+	opacitySpinBox->setValue(100);
+	opacitySpinBox->setSuffix("%");
 	opacitySlider->setRange(opacitySpinBox->minimum(), opacitySpinBox->maximum());
 	opacitySlider->setValue(opacitySpinBox->value());
 	hl3->addWidget(new QLabel("Opacity :"));
@@ -643,20 +722,22 @@ PenToolWidget::PenToolWidget( QWidget* parent /*= 0*/ )
 	connect(opacitySlider, SIGNAL(valueChanged(int)), opacitySpinBox, SLOT(setValue(int)));
 
 	// Spacing
+	sliderValueOffset = 100;
 	QHBoxLayout* hl4 = new QHBoxLayout;
-	spacingSpinBox = new QSpinBox;
+	spacingSpinBox = new QDoubleSpinBox;
 	spacingSlider = new QSlider(Qt::Horizontal);
 	spacingSpinBox->setMinimumWidth(75);
-	spacingSpinBox->setRange(0, 100);
-	spacingSpinBox->setValue(10);
-	spacingSlider->setRange(spacingSpinBox->minimum(), spacingSpinBox->maximum());
-	spacingSlider->setValue(spacingSpinBox->value());
+	spacingSpinBox->setRange(0.01, 1.0);
+	spacingSpinBox->setValue(0.5);
+	spacingSpinBox->setSingleStep(0.01);
+	spacingSlider->setRange(spacingSpinBox->minimum() * sliderValueOffset, spacingSpinBox->maximum() * sliderValueOffset);
+	spacingSlider->setValue(spacingSpinBox->value() * sliderValueOffset);
 	hl4->addWidget(new QLabel("Spacing :"));
 	hl4->addStretch(0);
 	hl4->addWidget(spacingSpinBox);
-	connect(spacingSpinBox, SIGNAL(valueChanged(int)), this, SIGNAL(BrushSpacingChanged(int)));
-	connect(spacingSpinBox, SIGNAL(valueChanged(int)), spacingSlider, SLOT(setValue(int)));
-	connect(spacingSlider, SIGNAL(valueChanged(int)), spacingSpinBox, SLOT(setValue(int)));
+	connect(spacingSpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(BrushSpacingChanged(double)));
+	connect(spacingSpinBox, SIGNAL(valueChanged(double)), this, SLOT(valueChanged_SpacingSpinBox(double)));
+	connect(spacingSlider, SIGNAL(valueChanged(int)), this, SLOT(valueChanged_SpacingSlider(int)));
 
 	// Main layout
 	QVBoxLayout* layout = new QVBoxLayout;
@@ -705,4 +786,14 @@ void PenToolWidget::clicked_ColorSelectButton()
 void PenToolWidget::BrushSelected_BrushScene(int id)
 {
 	emit BrushChanged(id);
+}
+
+void PenToolWidget::valueChanged_SpacingSlider( int n )
+{
+	spacingSpinBox->setValue((double)n / sliderValueOffset);
+}
+
+void PenToolWidget::valueChanged_SpacingSpinBox( double d )
+{
+	spacingSlider->setValue((int)(d * sliderValueOffset));
 }

@@ -32,6 +32,7 @@ public:
 	void CreateBrushPathList();
 	QString GetBrushPath(int index) { return brushPathList[index]; }
 	int GetBrushNum() { return brushPathList.size(); }
+	float GetBrushSize() { return brushSize; }
 
 signals:
 
@@ -39,6 +40,7 @@ signals:
 
 private:
 
+	float brushSize;
 	std::vector<QString> brushPathList;
 
 };

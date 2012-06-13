@@ -4,6 +4,7 @@
 #include "gllib.h"
 #include "util.h"
 #include <QGraphicsScene>
+#include <QGLWidget>
 #include <lbfgs.h>
 
 Canvas::Canvas(QString proxyGeometryPath, int width, int height)
@@ -14,10 +15,11 @@ Canvas::Canvas(QString proxyGeometryPath, int width, int height)
 	, canvasWidth(width)
 	, canvasHeight(height)
 	, trans(0.0f)
-	, currentStroke(NULL)
+	, backgroundTexture(NULL)
 {
 	// Load model
 	proxyModel = new ObjModel(proxyGeometryPath.toStdString(), 100.0f);
+	quad = new QuadMesh;
 
 	// Create shaders
 	renderShader = new GlslShader;
@@ -33,6 +35,26 @@ Canvas::Canvas(QString proxyGeometryPath, int width, int height)
 	flatShader->BindAttribute(VertexStream::POSITION, "position");
 	flatShader->Initialize();
 
+	flatTexShader = new GlslShader;
+	flatTexShader->AddShader(GlslShader::VERTEX_SHADER, "./resources/flattex.vert");
+	flatTexShader->AddShader(GlslShader::FRAGMENT_SHADER, "./resources/flattex.frag");
+	flatTexShader->BindAttribute(VertexStream::POSITION, "position");
+	flatTexShader->BindAttribute(VertexStream::TEXCOORD0, "texcoord");
+	flatTexShader->Initialize();
+
+	strokePointShader = new GlslShader;
+	strokePointShader->AddShader(GlslShader::VERTEX_SHADER, "./resources/strokepoint.vert");
+	strokePointShader->AddShader(GlslShader::GEOMETRY_SHADER, "./resources/strokepoint.geom");
+	strokePointShader->AddShader(GlslShader::FRAGMENT_SHADER, "./resources/strokepoint.frag");
+	strokePointShader->BindAttribute(0, "position");
+	strokePointShader->BindAttribute(1, "color");
+	strokePointShader->BindAttribute(2, "id");
+	strokePointShader->BindAttribute(3, "size");
+	strokePointShader->Initialize();
+
+	// Load brush textures
+	LoadBrushTexture();
+
 	// Camera params
 	fov = 45.0f;
 	nearClip = 0.01f;
@@ -41,14 +63,40 @@ Canvas::Canvas(QString proxyGeometryPath, int width, int height)
 
 Canvas::~Canvas()
 {
-	SAFE_DELETE(currentStroke);
+	SAFE_DELETE(brushTextures);
 	for (int i = 0; i < strokeList.size(); i++)
 	{
 		SAFE_DELETE(strokeList[i]);
 	}
 	SAFE_DELETE(renderShader);
 	SAFE_DELETE(flatShader);
+	SAFE_DELETE(quad);
 	SAFE_DELETE(proxyModel);
+}
+
+void Canvas::LoadBrushTexture()
+{
+	float size = Util::Get()->GetBrushSize();
+	int n = Util::Get()->GetBrushNum();
+	brushTextures = new Texture2DArray(size, size, n, GL_RGBA8, GL_RGBA, GL_REPEAT, GL_LINEAR, GL_LINEAR);
+	for (int i = 0; i < n; i++)
+	{
+		QString path = Util::Get()->GetBrushPath(i);
+		QImage image;
+		if (!image.load(path))
+		{
+			THROW_EXCEPTION(Exception::FileError,
+				("Failed to load brush image: " + path).toStdString());
+		}
+
+		QImage image2(image.width(), image.height(), QImage::Format_ARGB32);
+		image2.fill(Qt::transparent);
+		QPainter painter(&image2);
+		painter.drawImage(0, 0, image);
+
+		QImage glimage = QGLWidget::convertToGLFormat(image2);
+		brushTextures->Substitute(i, GL_RGBA, glimage.bits());
+	}
 }
 
 void Canvas::OnKeyPressed( QKeyEvent* event )
@@ -68,9 +116,10 @@ void Canvas::OnMouseMoved( QGraphicsSceneMouseEvent* event )
 		if (currentStrokeSteps == strokeSteps)
 		{
 			currentStrokeSteps = 0;
-			currentStroke->AddStroke(glm::vec2(
-				(float)event->scenePos().x(),
-				canvasHeight - (float)event->scenePos().y()));
+			currentStrokePoints.push_back(StrokePoint(
+				glm::vec3((float)event->scenePos().x(), canvasHeight - (float)event->scenePos().y(), 0.0f),
+				glm::vec4(brushColor, brushOpacity),
+				brushID, brushSize));
 		}
 		else
 		{
@@ -111,7 +160,6 @@ void Canvas::OnMousePressed( QGraphicsSceneMouseEvent* event )
 		if (state == STATE_IDLE)
 		{
 			ChangeState(STATE_STROKING);
-			currentStroke = new Stroke2D(this);
 			currentStrokeSteps = strokeSteps; // First stroke point is the clicked point
 			event->accept();
 			return;
@@ -149,10 +197,10 @@ void Canvas::OnMouseReleased( QGraphicsSceneMouseEvent* event )
 	{
 		if (state == STATE_STROKING)
 		{
-			if (currentStroke->strokePoints.size() >= 2)
+			if (currentStrokePoints.size() >= 2)
 			{
-				Stroke* stroke = new Stroke(this);
-				if (stroke->Embed(currentStroke))
+				Stroke* stroke = new Stroke(this, brushSpacing);
+				if (stroke->Embed(currentStrokePoints))
 				{
 					strokeList.push_back(stroke);
 				}
@@ -165,7 +213,7 @@ void Canvas::OnMouseReleased( QGraphicsSceneMouseEvent* event )
 			{
 				Util::Get()->ShowStatusMessage("Number of stroke points must be larger than 1");
 			}
-			SAFE_DELETE(currentStroke);
+			currentStrokePoints.clear();
 			ChangeState(STATE_IDLE);
 			event->accept();
 			return;
@@ -216,6 +264,11 @@ void Canvas::OnDraw()
 
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	if (enableBackgroundTexture)
+	{
+		DrawBackground();
+	}
 
 	// ------------------------------------------------------------
 
@@ -286,10 +339,7 @@ void Canvas::OnDraw()
 	// Grid rendering
 	//
 
-	if (enableGrid)
-	{
-
-	}
+	if (enableGrid) DrawGrid(mvpMatrix);
 
 	// ------------------------------------------------------------
 
@@ -297,18 +347,196 @@ void Canvas::OnDraw()
 	// Stroke rendering
 	//
 
-	glDisable(GL_DEPTH_TEST);
-	if (currentStroke) currentStroke->Draw();
-	glEnable(GL_DEPTH_TEST);
-	for (int i = 0; i < strokeList.size(); i++)
-	{
-		strokeList[i]->Draw();
-	}
+	DrawStrokes();
+	DrawCurrentStroke();
 
 	// ------------------------------------------------------------
 
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
+}
+
+void Canvas::DrawGrid(const glm::mat4& mvpMatrix)
+{
+	flatShader->Begin();
+	flatShader->SetUniformMatrix4f("mvpMatrix", mvpMatrix);
+	flatShader->SetUniform4f("color", glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+
+	glBegin(GL_LINES);
+	for (int i = -10; i <= 10; i++)
+	{
+		if (i == 0) continue;
+		float v = (float)i * 10.0f;
+		glVertex3f(-100.0f, 0.0f, v);
+		glVertex3f(100.0f, 0.0f, v);
+		glVertex3f(v, 0.0f, -100.0f);
+		glVertex3f(v, 0.0f, 100.0f);
+	}
+	glEnd();
+
+	flatShader->SetUniform4f("color", glm::vec4(1.0f, 0.3f, 0.3f, 1.0f));
+	glBegin(GL_LINES);
+	glVertex3f(-100.0f, 0.0f, 0.0f);
+	glVertex3f(100.0f, 0.0f, 0.0f);
+	glEnd();
+
+	flatShader->SetUniform4f("color", glm::vec4(0.3f, 0.3f, 1.0f, 1.0f));
+	glBegin(GL_LINES);
+	glVertex3f(0.0f, 0.0f, -100.0f);
+	glVertex3f(0.0f, 0.0f, 100.0f);
+	glEnd();
+
+	flatShader->End();
+}
+
+void Canvas::DrawBackground()
+{
+	if (backgroundTexture)
+	{
+		glDisable(GL_DEPTH_TEST);
+		flatTexShader->Begin();
+		flatTexShader->SetUniformMatrix4f("mvpMatrix", glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f));
+		flatTexShader->SetUniformTexture("colorMap", 0);
+		backgroundTexture->Bind();
+		quad->Draw();
+		flatTexShader->End();
+		glEnable(GL_DEPTH_TEST);
+	}
+}
+
+void Canvas::DrawStrokes()
+{
+	if (strokeList.size() == 0)
+	{
+		return;
+	}
+
+	// ------------------------------------------------------------
+
+	//
+	// Create vertex array for rendering
+	//
+	
+	std::vector<StrokePoint> vertices;
+	for (int i = 0; i < strokeList.size(); i++)
+	{
+		Stroke* stroke = strokeList[i];
+		for (int j = 0, k = 1; k < stroke->strokePoints.size(); j=k++)
+		{
+			StrokePoint& sp1 = stroke->strokePoints[j];
+			StrokePoint& sp2 = stroke->strokePoints[k];
+			float dist2 = glm::distance2(sp1.position, sp2.position);
+			float sp = stroke->brushSpacing;
+			if (sp * sp < dist2)
+			{
+				int div = (int)ceilf(glm::sqrt(dist2) / sp);
+				float step = 1.0f / ((float)div + 1.0f);
+				for (int l = 1; l < div; l++)
+				{
+					float t = step * (float)l;
+					vertices.push_back(StrokePoint(
+						glm::mix(sp1.position, sp2.position, t),
+						glm::mix(sp1.color, sp2.color, t),
+						sp1.id,
+						glm::mix(sp1.size, sp1.size, t)));
+				}
+			}
+			vertices.push_back(sp1);
+			vertices.push_back(sp2);
+		}
+	}
+
+	emit StrokeStateChanged(strokeList.size(), vertices.size());
+
+	// ------------------------------------------------------------
+
+	//
+	// Sort vertices
+	//
+
+	
+
+	// ------------------------------------------------------------
+
+	//
+	// Render
+	//
+
+	if (enableParticle) 
+	{
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		strokePointShader->Begin();
+		strokePointShader->SetUniformMatrix4f("mvMatrix", mvMatrix);
+		strokePointShader->SetUniformMatrix4f("projectionMatrix", projectionMatrix);
+		strokePointShader->SetUniformTexture("brushMap", 0);
+		brushTextures->Bind();
+		glEnableVertexAttribArray(0);
+		glEnableVertexAttribArray(1);
+		glEnableVertexAttribArray(2);
+		glEnableVertexAttribArray(3);
+		GLsizei stride = sizeof(StrokePoint);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, &vertices[0].position);
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, &vertices[0].color);
+		glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride, &vertices[0].id);
+		glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, &vertices[0].size);
+		glDrawArrays(GL_POINTS, 0, vertices.size());
+		glDisableVertexAttribArray(0);
+		glDisableVertexAttribArray(1);
+		glDisableVertexAttribArray(2);
+		glEnableVertexAttribArray(3);
+		strokePointShader->End();
+		glDisable(GL_BLEND);
+		glEnable(GL_DEPTH_TEST);
+	}
+
+	// ------------------------------------------------------------
+
+	//
+	// Stroke line
+	//
+	
+	if (enableStrokeLine)
+	{
+		for (int i = 0; i < strokeList.size(); i++)
+		{
+			strokeList[i]->Draw();
+		}
+	}
+}
+
+void Canvas::DrawCurrentStroke()
+{
+	//
+	// Draw current stroke line
+	//
+
+	if (!enableCurrentStrokeLine || currentStrokePoints.size() < 2)
+	{
+		return;
+	}
+
+	glDisable(GL_DEPTH_TEST);
+
+	flatShader->Begin();
+	flatShader->SetUniformMatrix4f("mvpMatrix",
+		glm::ortho(0.0f, (float)canvasWidth, 0.0f, (float)canvasHeight));
+	flatShader->SetUniform4f("color", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
+
+	glBegin(GL_LINES);
+	for (int i = 0, j = 1; j < currentStrokePoints.size(); i=j++)
+	{
+		glm::vec2 v1 = glm::vec2(currentStrokePoints[i].position);
+		glm::vec2 v2 = glm::vec2(currentStrokePoints[j].position);
+		glVertex3f(v1.x, v1.y, 0.0f);
+		glVertex3f(v2.x, v2.y, 0.0f);
+	}
+	glEnd();
+
+	flatShader->End();
+
+	glEnable(GL_DEPTH_TEST);
 }
 
 void Canvas::OnResizeCanvas( QSize size )
@@ -330,6 +558,21 @@ void Canvas::OnToggleAABB( int state )
 void Canvas::OnToggleGrid( int state )
 {
 	enableGrid = state == Qt::Checked;
+}
+
+void Canvas::OnToggleParticle( int state )
+{
+	enableParticle = state == Qt::Checked;
+}
+
+void Canvas::OnToggleStrokeLine( int state )
+{
+	enableStrokeLine = state == Qt::Checked;
+}
+
+void Canvas::OnToggleCurrentStrokeLine( int state )
+{
+	enableCurrentStrokeLine = state == Qt::Checked;
 }
 
 void Canvas::OnToolChanged( int id )
@@ -357,9 +600,38 @@ void Canvas::OnStrokeStepChanged( int step )
 	strokeSteps = step;
 }
 
+void Canvas::OnResetViewButtonClicked()
+{
+	scale = 1.0f;
+	trans = glm::vec3();
+	currentQuat = glm::quat();
+}
+
+void Canvas::OnToggleBackground( int state )
+{
+	enableBackgroundTexture = state == Qt::Checked;
+}
+
+void Canvas::OnChangeBackgroundImage( QString path )
+{
+	if (!enableBackgroundTexture) return;
+	SAFE_DELETE(backgroundTexture);
+	QImage image;
+	if (!image.load(path))
+	{
+		Util::Get()->ShowStatusMessage("Failed to load " + path);
+		return;
+	}
+	QImage glimage = QGLWidget::convertToGLFormat(image);
+	backgroundTexture = new Texture2D(
+		glimage.width(), glimage.height(),
+		GL_RGBA8, GL_RGBA, GL_CLAMP, GL_LINEAR, GL_LINEAR, (void*)glimage.bits());
+	Util::Get()->ShowStatusMessage("Loaded background image " + path);
+}
+
 void Canvas::OnBrushColorChanged( QColor color )
 {
-	brushColor = color;
+	brushColor = glm::vec3(color.redF(), color.greenF(), color.blueF());
 }
 
 void Canvas::OnBrushChanged( int id )
@@ -369,61 +641,24 @@ void Canvas::OnBrushChanged( int id )
 
 void Canvas::OnBrushSizeChanged( int size )
 {
-	brushSize = size;
+	brushSize = (float)size;
 }
 
 void Canvas::OnBrushOpacityChanged( int opacity )
 {
-	brushOpacity = opacity;
+	brushOpacity = (float)opacity / 100.0f;
 }
 
-void Canvas::OnBrushSpacingChanged( int spacing )
+void Canvas::OnBrushSpacingChanged( double spacing )
 {
-	brushSpacing = spacing;
+	brushSpacing = (float)spacing;
 }
 
 // ------------------------------------------------------------
 
-Stroke2D::Stroke2D( Canvas* canvas )
+Stroke::Stroke(Canvas* canvas, float brushSpacing)
 	: canvas(canvas)
-{
-
-}
-
-void Stroke2D::Draw()
-{
-	if (strokePoints.size() < 2)
-	{
-		return;
-	}
-
-	canvas->flatShader->Begin();
-	canvas->flatShader->SetUniformMatrix4f("mvpMatrix",
-		glm::ortho(0.0f, (float)canvas->canvasWidth, 0.0f, (float)canvas->canvasHeight));
-	canvas->flatShader->SetUniform4f("color", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
-
-	glBegin(GL_LINES);
-	for (int i = 0, j = 1; j < strokePoints.size(); i=j++)
-	{
-		glm::vec2& v1 = strokePoints[i];
-		glm::vec2& v2 = strokePoints[j];
-		glVertex3f(v1.x, v1.y, 0.0f);
-		glVertex3f(v2.x, v2.y, 0.0f);
-	}
-	glEnd();
-
-	canvas->flatShader->End();
-}
-
-void Stroke2D::AddStroke( const glm::vec2& point )
-{
-	strokePoints.push_back(point);
-}
-
-// ------------------------------------------------------------
-
-Stroke::Stroke(Canvas* canvas)
-	: canvas(canvas)
+	, brushSpacing(brushSpacing)
 {
 
 }
@@ -437,13 +672,13 @@ void Stroke::Draw()
 
 	canvas->flatShader->Begin();
 	canvas->flatShader->SetUniformMatrix4f("mvpMatrix", canvas->mvpMatrix);
-	canvas->flatShader->SetUniform4f("color", glm::vec4(0.0f, 0.0f, 0.5f, 1.0f));
+	canvas->flatShader->SetUniform4f("color", glm::vec4(0.5f, 0.5f, 1.0f, 1.0f));
 	
 	glBegin(GL_LINES);
 	for (int i = 0, j = 1; j < strokePoints.size(); i=j++)
 	{
-		glm::vec3& v1 = strokePoints[i];
-		glm::vec3& v2 = strokePoints[j];
+		glm::vec3& v1 = strokePoints[i].position;
+		glm::vec3& v2 = strokePoints[j].position;
 		glVertex3fv(glm::value_ptr(v1));
 		glVertex3fv(glm::value_ptr(v2));
 	}
@@ -453,26 +688,31 @@ void Stroke::Draw()
 	glBegin(GL_POINTS);
 	for (int i = 0; i < strokePoints.size(); i++)
 	{
-		glVertex3fv(glm::value_ptr(strokePoints[i]));
+		glVertex3fv(glm::value_ptr(strokePoints[i].position));
 	}
 	glEnd();
 
 	canvas->flatShader->End();
 }
 
-bool Stroke::Embed(Stroke2D* stroke)
+bool Stroke::Embed(const std::vector<StrokePoint>& points)
 {
+	// Copy stroke info
+	strokePoints = points;
+
+	// ------------------------------------------------------------
+
 	double time = Timer::GetCurrentTimeMilli();
 
 	// Initial distance of the stroke points
 	std::vector<float> initialDists;
-	int pointNum = stroke->strokePoints.size();
+	int pointNum = points.size();
 
 	// Calculate ray directions
 	for (int i = 0; i < pointNum; i++)
 	{
 		// Calculate ray parameters from the raster position
-		glm::vec2& rasterPos = stroke->strokePoints[i];
+		glm::vec2 rasterPos = glm::vec2(points[i].position);
 		glm::vec3 cameraSample(
 			-(float)canvas->canvasWidth * 0.5f + rasterPos.x,
 			-(float)canvas->canvasHeight * 0.5f + rasterPos.y,
@@ -538,7 +778,7 @@ bool Stroke::Embed(Stroke2D* stroke)
 	std::vector<float> optimizedDists = Optimize(initialDists);
 	for (int i = 0; i < pointNum; i++)
 	{
-		strokePoints.push_back(canvas->camWorldPos + (float)optimizedDists[i] * rayDirs[i]);
+		strokePoints[i].position = canvas->camWorldPos + (float)optimizedDists[i] * rayDirs[i];
 	}
 
 	double elapsed = (Timer::GetCurrentTimeMilli() - time) / 1000.0f;

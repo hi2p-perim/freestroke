@@ -1,4 +1,5 @@
 #include "gllib.h"
+#include <FreeImage.h>
 
 void CheckGLErrors( const char* filename, const char* funcname, const int line )
 {
@@ -389,6 +390,68 @@ SphereMesh::SphereMesh( float radius, int slicenum, int stacknum )
 	End();
 }
 
+QuadMesh::QuadMesh()
+{
+	AddAttribute(POSITION, sizeof(glm::vec3));
+	AddAttribute(NORMAL, sizeof(glm::vec3));
+	AddAttribute(TEXCOORD0, sizeof(glm::vec2));
+
+	Begin();
+	AddVertex(POSITION, glm::vec3(-1.0f, -1.0f, 0.0f));
+	AddVertex(POSITION, glm::vec3(1.0f, -1.0f, 0.0f));
+	AddVertex(POSITION, glm::vec3(1.0f, 1.0f, 0.0f));
+	AddVertex(POSITION, glm::vec3(-1.0f, 1.0f, 0.0f));
+	AddVertex(NORMAL, glm::vec3(0.0f, 0.0f, 1.0f));
+	AddVertex(NORMAL, glm::vec3(0.0f, 0.0f, 1.0f));
+	AddVertex(NORMAL, glm::vec3(0.0f, 0.0f, 1.0f));
+	AddVertex(NORMAL, glm::vec3(0.0f, 0.0f, 1.0f));
+#if 0
+	AddVertex(TEXCOORD0, glm::vec2(0.0f, 1.0f));
+	AddVertex(TEXCOORD0, glm::vec2(1.0f, 1.0f));
+	AddVertex(TEXCOORD0, glm::vec2(1.0f, 0.0f));
+	AddVertex(TEXCOORD0, glm::vec2(0.0f, 0.0f));
+#else
+	AddVertex(TEXCOORD0, glm::vec2(0.0f, 0.0f));
+	AddVertex(TEXCOORD0, glm::vec2(1.0f, 0.0f));
+	AddVertex(TEXCOORD0, glm::vec2(1.0f, 1.0f));
+	AddVertex(TEXCOORD0, glm::vec2(0.0f, 1.0f));
+#endif
+	AddIndex(0, 1, 2);
+	AddIndex(0, 2, 3);
+	End();
+}
+
+QuadMesh::QuadMesh( float x, float y, float w, float h )
+{
+	AddAttribute(POSITION, sizeof(glm::vec3));
+	AddAttribute(NORMAL, sizeof(glm::vec3));
+	AddAttribute(TEXCOORD0, sizeof(glm::vec2));
+
+	Begin();
+	AddVertex(POSITION, glm::vec3((float)x, (float)y, 0.0f));
+	AddVertex(POSITION, glm::vec3((float)(x + w), (float)y, 0.0f));
+	AddVertex(POSITION, glm::vec3((float)(x + w), (float)(y + h), 0.0f));
+	AddVertex(POSITION, glm::vec3((float)x, (float)(y + h), 0.0f));
+	AddVertex(NORMAL, glm::vec3(0.0f, 0.0f, 1.0f));
+	AddVertex(NORMAL, glm::vec3(0.0f, 0.0f, 1.0f));
+	AddVertex(NORMAL, glm::vec3(0.0f, 0.0f, 1.0f));
+	AddVertex(NORMAL, glm::vec3(0.0f, 0.0f, 1.0f));
+#if 0
+	AddVertex(TEXCOORD0, glm::vec2(0.0f, 1.0f));
+	AddVertex(TEXCOORD0, glm::vec2(1.0f, 1.0f));
+	AddVertex(TEXCOORD0, glm::vec2(1.0f, 0.0f));
+	AddVertex(TEXCOORD0, glm::vec2(0.0f, 0.0f));
+#else
+	AddVertex(TEXCOORD0, glm::vec2(0.0f, 0.0f));
+	AddVertex(TEXCOORD0, glm::vec2(1.0f, 0.0f));
+	AddVertex(TEXCOORD0, glm::vec2(1.0f, 1.0f));
+	AddVertex(TEXCOORD0, glm::vec2(0.0f, 1.0f));
+#endif
+	AddIndex(0, 1, 2);
+	AddIndex(0, 2, 3);
+	End();
+}
+
 GlslShader::GlslShader()
 {
 	programID = glCreateProgram();
@@ -630,4 +693,198 @@ void GlslShader::SetUniform1i( const std::string& name, int v )
 	GLuint uniformID = GetOrCreateUniformID(name);
 	glUniform1i(uniformID, v);
 	CHECK_GL_ERRORS();
+}
+
+Texture::Texture()
+{
+	glGenTextures(1, &textureID);
+}
+
+Texture::~Texture()
+{
+	glDeleteTextures(1, &textureID);
+}
+
+Texture2D::Texture2D(int width, int height, GLint internalformat, GLenum format, GLint wrapmode, GLint magfilter, GLint minfilter)
+{	
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, format, GL_UNSIGNED_BYTE, NULL);
+	SetTextureParam(wrapmode, minfilter, magfilter);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	CHECK_GL_ERRORS();
+}
+
+Texture2D::Texture2D(int width, int height, GLint internalformat, GLenum format, GLint wrapmode, GLint magfilter, GLint minfilter, const void* data)
+{
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+	SetTextureParam(wrapmode, minfilter, magfilter);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	CHECK_GL_ERRORS();
+}
+
+void Texture2D::Bind()
+{
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	CHECK_GL_ERRORS();
+}
+
+void Texture2D::Bind(GLenum unit)
+{
+	glActiveTexture(unit);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	CHECK_GL_ERRORS();
+}
+
+void Texture2D::Substitute( int xoffset, int yoffset, int width, int height, GLenum format, GLenum type, const void* data )
+{
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height, format, type, data);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	CHECK_GL_ERRORS();
+}
+
+void Texture2D::SetTextureParam(GLint wrapmode, GLint minfilter, GLint magfilter)
+{
+	// If the anisotropic filtering can be used,
+	// set to the maximum possible value.
+	float maxanisoropy;
+	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxanisoropy);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxanisoropy);
+
+	// Wrap mode
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapmode);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapmode);
+
+	// Filters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+}
+
+Texture2DArray::Texture2DArray(int width, int height, int depth, GLint internalformat, GLenum format, GLint wrapmode, GLint magfilter, GLint minfilter)
+	: width(width)
+	, height(height)
+{
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureID);
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, internalformat, width, height, depth, 0, format, GL_UNSIGNED_BYTE, NULL);
+	SetTextureParam(wrapmode, minfilter, magfilter);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+	CHECK_GL_ERRORS();
+}
+
+void Texture2DArray::Bind()
+{
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureID);
+	CHECK_GL_ERRORS();
+}
+
+void Texture2DArray::Bind( GLenum unit )
+{
+	glActiveTexture(unit);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureID);
+	CHECK_GL_ERRORS();
+}
+
+void Texture2DArray::SetTextureParam( GLint wrapmode, GLint minfilter, GLint magfilter )
+{
+	// If the anisotropic filtering can be used,
+	// set to the maximum possible value.
+	float maxanisoropy;
+	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxanisoropy);
+	glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxanisoropy);
+
+	// Wrap mode
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, wrapmode);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, wrapmode);
+
+	// Filters
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+}
+
+void Texture2DArray::Substitute( int depth, GLenum format, const void* data )
+{
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureID);
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, depth, width, height, 1, format, GL_UNSIGNED_BYTE, data);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+	CHECK_GL_ERRORS();
+}
+
+class ImageLoader::Impl
+{
+public:
+
+	Impl(const std::string& path);
+	~Impl();
+	unsigned int GetWidth() { return FreeImage_GetWidth(bitmap); }
+	unsigned int GetHeight() { return FreeImage_GetHeight(bitmap); }
+	GLubyte* GetData() { return FreeImage_GetBits(bitmap); }
+
+private:
+
+	FIBITMAP* bitmap;
+
+};
+
+ImageLoader::Impl::Impl(const std::string& path)
+	: bitmap(NULL)
+{
+	FREE_IMAGE_FORMAT fileFormat = FIF_UNKNOWN;
+
+	// Check file format
+	fileFormat = FreeImage_GetFileType(path.c_str(), 0);
+	if (fileFormat == FIF_UNKNOWN)
+	{
+		fileFormat = FreeImage_GetFIFFromFilename(path.c_str());
+	}
+	if (fileFormat == FIF_UNKNOWN)
+	{
+		THROW_EXCEPTION(Exception::FileError, "Image loader: unknown file type");
+	}
+
+	// Load image
+	if (FreeImage_FIFSupportsReading(fileFormat))
+	{
+		bitmap = FreeImage_Load(fileFormat, path.c_str());
+	}
+	if (!bitmap)
+	{
+		THROW_EXCEPTION(Exception::FileError, "Failed to load " + path);
+	}
+}
+
+ImageLoader::Impl::~Impl()
+{
+	FreeImage_Unload(bitmap);
+}
+
+ImageLoader::ImageLoader( const std::string& path )
+	: pimpl(new Impl(path))
+{
+
+}
+
+ImageLoader::~ImageLoader()
+{
+
+}
+
+unsigned int ImageLoader::GetWidth()
+{
+	return pimpl->GetWidth();
+}
+
+unsigned int ImageLoader::GetHeight()
+{
+	return pimpl->GetHeight();
+}
+
+GLubyte* ImageLoader::GetData()
+{
+	return pimpl->GetData();
 }

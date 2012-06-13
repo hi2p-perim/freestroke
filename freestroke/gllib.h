@@ -109,6 +109,15 @@ public:
 
 };
 
+class QuadMesh : public TriangleMesh
+{
+public:
+
+	QuadMesh();
+	QuadMesh(float x, float y, float w, float h);
+
+};
+
 /*!
 	GLSL program.
 	The class for handling a GLSL program with shaders.
@@ -155,6 +164,91 @@ private:
 
 	GLuint programID;
 	UniformLocationMap uniformLocationMap;
+
+};
+
+
+/*!
+	Texture base.
+	The texture base class which represents GL textures.
+*/
+class Texture
+{
+public:
+
+	Texture();
+	virtual ~Texture();
+
+public:
+
+	virtual void Bind() = 0;
+	virtual void Bind(GLenum unit) = 0;
+	GLuint GetID() { return textureID; }
+
+protected:
+
+	GLuint textureID;
+
+};
+
+/*!
+	2D texture.
+	2 dimensional texture class which represents GL_TEXTURE2D.
+*/
+class Texture2D : public Texture
+{
+public:
+
+	Texture2D(int width, int height, GLint internalformat, GLenum format, GLint wrapmode, GLint magfilter, GLint minfilter);
+	Texture2D(int width, int height, GLint internalformat, GLenum format, GLint wrapmode, GLint magfilter, GLint minfilter, const void* data);
+	void Bind();
+	void Bind(GLenum unit);
+	void Substitute(int xoffset, int yoffset, int width, int height, GLenum format, GLenum type, const void* data);
+
+private:
+
+	void SetTextureParam(GLint wrapmode, GLint minfilter, GLint magfilter);
+
+};
+
+class ImageLoader
+{
+public:
+
+	ImageLoader(const std::string& path);
+	~ImageLoader();
+	unsigned int GetWidth();
+	unsigned int GetHeight();
+	GLubyte* GetData();
+
+private:
+
+	class Impl;
+	boost::scoped_ptr<Impl> pimpl;
+
+};
+
+/*!
+	2D texture array.
+	The class describes GL_TEXTURE_2D_ARRAY.
+*/
+class Texture2DArray : public Texture
+{
+public:
+
+	Texture2DArray(int width, int height, int depth, GLint internalformat, GLenum format, GLint wrapmode, GLint magfilter, GLint minfilter);
+	void Bind();
+	void Bind(GLenum unit);
+	void Substitute(int depth, GLenum format, const void* data);
+
+private:
+
+	void SetTextureParam(GLint wrapmode, GLint minfilter, GLint magfilter);
+
+private:
+
+	int width;
+	int height;
 
 };
 

@@ -35,10 +35,10 @@
     <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)bin\</OutDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)bin\</OutDir>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(BOOST_ROOT);$(SolutionDir)external\glm-0.9.3.B\glm;$(SolutionDir)external\glew-1.7.0\include;$(SolutionDir)external\liblbfgs-1.10\include;$(SolutionDir)external\CGAL-4.0\include;$(IncludePath)</IncludePath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(BOOST_ROOT)\lib;$(SolutionDir)external\glew-1.7.0\lib;$(SolutionDir)external\liblbfgs-1.10\lib;$(SolutionDir)external\CGAL-4.0\lib;$(LibraryPath)</LibraryPath>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(BOOST_ROOT);$(SolutionDir)external\glm-0.9.3.B\glm;$(SolutionDir)external\glew-1.7.0\include;$(SolutionDir)external\liblbfgs-1.10\include;$(SolutionDir)external\CGAL-4.0\include;$(IncludePath)</IncludePath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(BOOST_ROOT)\lib;$(SolutionDir)external\glew-1.7.0\lib;$(SolutionDir)external\liblbfgs-1.10\lib;$(SolutionDir)external\CGAL-4.0\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(BOOST_ROOT);$(SolutionDir)external\glm-0.9.3.B\glm;$(SolutionDir)external\glew-1.7.0\include;$(SolutionDir)external\liblbfgs-1.10\include;$(SolutionDir)external\CGAL-4.0\include;$(SolutionDir)external\FreeImage\Dist;$(IncludePath)</IncludePath>
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(BOOST_ROOT)\lib;$(SolutionDir)external\glew-1.7.0\lib;$(SolutionDir)external\liblbfgs-1.10\lib;$(SolutionDir)external\CGAL-4.0\lib;$(SolutionDir)external\FreeImage\Dist;$(LibraryPath)</LibraryPath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(BOOST_ROOT);$(SolutionDir)external\glm-0.9.3.B\glm;$(SolutionDir)external\glew-1.7.0\include;$(SolutionDir)external\liblbfgs-1.10\include;$(SolutionDir)external\CGAL-4.0\include;$(SolutionDir)external\FreeImage\Dist;$(IncludePath)</IncludePath>
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(BOOST_ROOT)\lib;$(SolutionDir)external\glew-1.7.0\lib;$(SolutionDir)external\liblbfgs-1.10\lib;$(SolutionDir)external\CGAL-4.0\lib;$(SolutionDir)external\FreeImage\Dist;$(LibraryPath)</LibraryPath>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectName)d</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -59,7 +59,7 @@
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <AdditionalLibraryDirectories>$(QTDIR)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>qtmaind.lib;QtCored4.lib;QtGuid4.lib;QtOpenGLd4.lib;opengl32.lib;glu32.lib;glew32.lib;DbgHelp.lib;lbfgs_debug.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>qtmaind.lib;QtCored4.lib;QtGuid4.lib;QtOpenGLd4.lib;opengl32.lib;glu32.lib;glew32.lib;DbgHelp.lib;lbfgs_debug.lib;FreeImage.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -80,7 +80,7 @@
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <AdditionalLibraryDirectories>$(QTDIR)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalDependencies>qtmain.lib;QtCore4.lib;QtGui4.lib;QtOpenGL4.lib;opengl32.lib;glu32.lib;glew32.lib;DbgHelp.lib;lbfgs.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>qtmain.lib;QtCore4.lib;QtGui4.lib;QtOpenGL4.lib;opengl32.lib;glu32.lib;glew32.lib;DbgHelp.lib;lbfgs.lib;FreeImage.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

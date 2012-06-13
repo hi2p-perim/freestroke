@@ -32,6 +32,7 @@ private slots:
 	void OnUpdateFpsLabel(float fps);
 	void OnCanvasStateChanged(unsigned int state);
 	void OnStatusMessage(QString mes);
+	void OnStrokeStateChanged(int strokeNum, int particleNum);
 
 signals:
 
@@ -70,6 +71,7 @@ private:
 	// Status bar info
 	QLabel* fpsLabel;
 	QLabel* canvasStateLabel;
+	QLabel* strokeStateLabel;
 
 	// Dock widgets
 	CanvasManipulatorWidget* canvasManipWidget;
@@ -104,18 +106,33 @@ public:
 public slots:
 
 	void OnReset();
+	void stateChanged_BackgroundCheckBox(int state);
+	void clicked_FindBackgroundImageButton();
 
 signals:
 
 	void ToggleWireframe(int state);
 	void ToggleAABB(int state);
 	void ToggleGrid(int state);
+	void ToggleParticle(int state);
+	void ToggleStrokeLine(int state);
+	void ToggleCurrentStrokeLine(int state);
+	void ResetViewButtonClicked();
+	void ToggleBackground(int state);
+	void ChangeBackgroundImage(QString path);
 
 private:
 
 	QCheckBox* wireframeCheckBox;
 	QCheckBox* aabbCheckBox;
 	QCheckBox* gridCheckBox;
+	QCheckBox* particleCheckBox;
+	QCheckBox* strokeLineCheckBox;
+	QCheckBox* currentStrokeLineCheckBox;
+
+	QCheckBox* backgroundCheckBox;
+	QPushButton* findBackgroundImageButton;
+	QString backgroundImagePath;
 
 };
 
@@ -269,6 +286,8 @@ public slots:
 	void OnReset();
 	void clicked_ColorSelectButton();
 	void BrushSelected_BrushScene(int id);
+	void valueChanged_SpacingSlider(int n);
+	void valueChanged_SpacingSpinBox(double d);
 
 signals:
 
@@ -276,9 +295,11 @@ signals:
 	void BrushChanged(int id);
 	void BrushSizeChanged(int size);
 	void BrushOpacityChanged(int opacity);
-	void BrushSpacingChanged(int spacing);
+	void BrushSpacingChanged(double spacing);
 
 private:
+
+	int sliderValueOffset;
 
 	QColorDialog* colorDialog;
 	FlatColorWidget* currentColor;
@@ -288,7 +309,7 @@ private:
 
 	QSpinBox* sizeSpinBox;
 	QSpinBox* opacitySpinBox;
-	QSpinBox* spacingSpinBox;
+	QDoubleSpinBox* spacingSpinBox;
 	QSlider* sizeSlider;
 	QSlider* opacitySlider;
 	QSlider* spacingSlider;
