@@ -119,7 +119,7 @@ void Canvas::OnMouseMoved( QGraphicsSceneMouseEvent* event )
 			currentStrokePoints.push_back(StrokePoint(
 				glm::vec3((float)event->scenePos().x(), canvasHeight - (float)event->scenePos().y(), 0.0f),
 				glm::vec4(brushColor, brushOpacity),
-				brushID, brushSize));
+				brushID, brushSize, strokeList.size()));
 		}
 		else
 		{
@@ -199,7 +199,7 @@ void Canvas::OnMouseReleased( QGraphicsSceneMouseEvent* event )
 		{
 			if (currentStrokePoints.size() >= 2)
 			{
-				Stroke* stroke = new Stroke(this, brushSpacing);
+				Stroke* stroke = new Stroke(this, brushSpacing, camWorldPos);
 				if (stroke->Embed(currentStrokePoints))
 				{
 					strokeList.push_back(stroke);
@@ -438,7 +438,8 @@ void Canvas::DrawStrokes()
 						glm::mix(sp1.position, sp2.position, t),
 						glm::mix(sp1.color, sp2.color, t),
 						sp1.id,
-						glm::mix(sp1.size, sp1.size, t)));
+						glm::mix(sp1.size, sp1.size, t),
+						sp1.guid));
 				}
 			}
 			vertices.push_back(sp1);
@@ -454,7 +455,25 @@ void Canvas::DrawStrokes()
 	// Sort vertices
 	//
 
-	
+	const float C = -0.1f;
+	std::vector<std::pair<float, int> > modifiedDepthList;
+	for (int i = 0; i < vertices.size(); i++)
+	{
+		int guid = vertices[i].guid;
+		glm::vec3& pi = vertices[i].position;
+		glm::vec3 di = glm::normalize(pi - camWorldPos);
+
+		// Distance from the current camera position.
+		float depth = glm::distance2(pi + C * (float)guid * di, camWorldPos);
+		modifiedDepthList.push_back(std::make_pair(depth, i));
+	}
+	std::sort(modifiedDepthList.begin(), modifiedDepthList.end());
+
+	std::vector<unsigned int> indexList;
+	for (int i = modifiedDepthList.size() - 1; i >= 0; i--)
+	{
+		indexList.push_back(modifiedDepthList[i].second);
+	}
 
 	// ------------------------------------------------------------
 
@@ -481,7 +500,8 @@ void Canvas::DrawStrokes()
 		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, &vertices[0].color);
 		glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride, &vertices[0].id);
 		glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, stride, &vertices[0].size);
-		glDrawArrays(GL_POINTS, 0, vertices.size());
+		//glDrawArrays(GL_POINTS, 0, vertices.size());
+		glDrawElements(GL_POINTS, vertices.size(), GL_UNSIGNED_INT, &indexList[0]);
 		glDisableVertexAttribArray(0);
 		glDisableVertexAttribArray(1);
 		glDisableVertexAttribArray(2);
@@ -656,9 +676,10 @@ void Canvas::OnBrushSpacingChanged( double spacing )
 
 // ------------------------------------------------------------
 
-Stroke::Stroke(Canvas* canvas, float brushSpacing)
+Stroke::Stroke(Canvas* canvas, float brushSpacing, const glm::vec3& camWorldPos)
 	: canvas(canvas)
 	, brushSpacing(brushSpacing)
+	, camWorldPos(camWorldPos)
 {
 
 }

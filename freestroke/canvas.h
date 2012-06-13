@@ -12,18 +12,27 @@ class QuadMesh;
 
 /*!
 	Stroke point.
+	The structure describes the stroke point of the embedded stroke.
 */
 struct StrokePoint
 {
-	StrokePoint(const glm::vec3& position, const glm::vec4& color, int id, float size)
+
+	StrokePoint(const glm::vec3& position, const glm::vec4& color, int id, float size, int guid)
 		: position(position)
 		, color(color)
 		, id(id)
-		, size(size) {}
-	glm::vec3 position;
-	glm::vec4 color; // brush opacity term is included in the color
-	int id;
-	float size;
+		, size(size)
+		, guid(guid)
+	{
+
+	}
+
+	glm::vec3 position;	//!< Stroke point.
+	glm::vec4 color;	//!< Brush color. Opacity term included in the color.
+	int id;				//!< Brush ID.
+	float size;			//!< Brush size in the world space.
+	int guid;			//!< GUID assigned for each stroke.	
+
 };
 
 /*!
@@ -196,7 +205,7 @@ class Stroke
 {
 public:
 	
-	Stroke(Canvas* canvas, float brushSpacing);
+	Stroke(Canvas* canvas, float brushSpacing, const glm::vec3& camWorldPos);
 	void Draw();
 	bool Embed(const std::vector<StrokePoint>& points);
 
@@ -210,6 +219,7 @@ public:
 	Canvas* canvas;
 	std::vector<StrokePoint> strokePoints;
 	float brushSpacing;
+	glm::vec3 camWorldPos;
 
 	// The fixed point used for the hair and feather tools
 	glm::vec3 rootPoint;

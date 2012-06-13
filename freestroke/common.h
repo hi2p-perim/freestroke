@@ -11,6 +11,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
