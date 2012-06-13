@@ -97,6 +97,7 @@ public slots:
 	void OnLevelChanged(double level);
 	void OnLevelOffsetChanged(double level);
 	void OnStrokeStepChanged(int step);
+	void OnStrokeOrderOffsetChanged(double offset);
 
 	void OnBrushColorChanged(QColor color);
 	void OnBrushChanged(int id);
@@ -182,6 +183,7 @@ public:
 	float currentLevelOffset;
 	int strokeSteps;
 	int currentStrokeSteps;
+	float strokeOrderOffset;
 
 	// ------------------------------------------------------------
 

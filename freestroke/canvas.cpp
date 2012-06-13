@@ -408,7 +408,6 @@ void Canvas::DrawStrokes()
 	// Sort vertices
 	//
 
-	const float C = -0.1f;
 	std::vector<std::pair<float, int> > modifiedDepthList;
 	for (int i = 0; i < vertices.size(); i++)
 	{
@@ -417,7 +416,7 @@ void Canvas::DrawStrokes()
 		glm::vec3 di = glm::normalize(pi - camWorldPos);
 
 		// Distance from the current camera position.
-		float depth = glm::distance2(pi + C * (float)guid * di, camWorldPos);
+		float depth = glm::distance2(pi - strokeOrderOffset * (float)guid * di, camWorldPos);
 		modifiedDepthList.push_back(std::make_pair(depth, i));
 	}
 	std::sort(modifiedDepthList.begin(), modifiedDepthList.end());
@@ -576,6 +575,11 @@ void Canvas::OnLevelOffsetChanged( double level )
 void Canvas::OnStrokeStepChanged( int step )
 {
 	strokeSteps = step;
+}
+
+void Canvas::OnStrokeOrderOffsetChanged( double offset )
+{
+	strokeOrderOffset = (float)offset;
 }
 
 void Canvas::OnResetViewButtonClicked()

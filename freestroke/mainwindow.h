@@ -158,8 +158,10 @@ public slots:
 	void OnReset();
 	void valueChanged_LevelSetSlider(int n);
 	void valueChanged_LevelOffsetSlider(int n);
+	void valueChanged_StrokeOrderSlider(int n);
 	void valueChanged_LevelSetSpinBox(double d);
 	void valueChanged_LevelOffsetSpinBox(double d);
+	void valueChanged_StrokeOrderSpinBox(double d);
 
 signals:
 
@@ -167,6 +169,7 @@ signals:
 	void LevelChanged(double level);
 	void LevelOffsetChanged(double level);
 	void StrokeStepChanged(int step);
+	void StrokeOrderOffsetChanged(double offset);
 
 private:
 
@@ -181,9 +184,11 @@ private:
 	QDoubleSpinBox* levelSetSpinBox;
 	QDoubleSpinBox* levelOffsetSpinBox;
 	QSpinBox* strokeStepSpinBox;
+	QDoubleSpinBox* strokeOrderSpinBox;
 	QSlider* levelSetSlider;
 	QSlider* levelOffsetSlider;
 	QSlider* strokeStepSlider;
+	QSlider* strokeOrderSlider;
 
 };
 

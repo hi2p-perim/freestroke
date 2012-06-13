@@ -314,6 +314,7 @@ void MainWindow::InitCanvas()
 	connect(embeddingToolWidget, SIGNAL(LevelChanged(double)), canvas, SLOT(OnLevelChanged(double)));
 	connect(embeddingToolWidget, SIGNAL(LevelOffsetChanged(double)), canvas, SLOT(OnLevelOffsetChanged(double)));
 	connect(embeddingToolWidget, SIGNAL(StrokeStepChanged(int)), canvas, SLOT(OnStrokeStepChanged(int)));
+	connect(embeddingToolWidget, SIGNAL(StrokeOrderOffsetChanged(double)), canvas, SLOT(OnStrokeOrderOffsetChanged(double)));
 
 	// Pen tool
 	connect(penToolWidget, SIGNAL(BrushColorChanged(QColor)), canvas, SLOT(OnBrushColorChanged(QColor)));
@@ -481,7 +482,7 @@ EmbeddingToolWidget::EmbeddingToolWidget( QWidget* parent /*= 0*/ )
 	QHBoxLayout* hl2 = new QHBoxLayout;
 	levelSetSpinBox = new QDoubleSpinBox;
 	levelSetSlider = new QSlider(Qt::Horizontal);
-	levelSetSpinBox->setMinimumWidth(75);
+	levelSetSpinBox->setMinimumWidth(70);
 	levelSetSpinBox->setSingleStep(0.01);
 	levelSetSpinBox->setRange(minLevel, maxLevel);
 	levelSetSpinBox->setValue(0.0);
@@ -498,7 +499,7 @@ EmbeddingToolWidget::EmbeddingToolWidget( QWidget* parent /*= 0*/ )
 	QHBoxLayout* hl3 = new QHBoxLayout;
 	levelOffsetSpinBox = new QDoubleSpinBox;
 	levelOffsetSlider = new QSlider(Qt::Horizontal);
-	levelOffsetSpinBox->setMinimumWidth(75);
+	levelOffsetSpinBox->setMinimumWidth(70);
 	levelOffsetSpinBox->setSingleStep(0.01);
 	levelOffsetSpinBox->setRange(minLevel, maxLevel);
 	levelOffsetSpinBox->setValue(0.0);
@@ -515,7 +516,7 @@ EmbeddingToolWidget::EmbeddingToolWidget( QWidget* parent /*= 0*/ )
 	QHBoxLayout* hl4 = new QHBoxLayout;
 	strokeStepSpinBox = new QSpinBox;
 	strokeStepSlider = new QSlider(Qt::Horizontal);
-	strokeStepSpinBox->setMinimumWidth(75);
+	strokeStepSpinBox->setMinimumWidth(70);
 	strokeStepSpinBox->setRange(0, 10);
 	strokeStepSpinBox->setValue(3);
 	strokeStepSlider->setRange(strokeStepSpinBox->minimum(), strokeStepSpinBox->maximum());
@@ -527,6 +528,23 @@ EmbeddingToolWidget::EmbeddingToolWidget( QWidget* parent /*= 0*/ )
 	connect(strokeStepSpinBox, SIGNAL(valueChanged(int)), strokeStepSlider, SLOT(setValue(int)));
 	connect(strokeStepSlider, SIGNAL(valueChanged(int)), strokeStepSpinBox, SLOT(setValue(int)));
 
+	// Stroke order
+	QHBoxLayout* hl5 = new QHBoxLayout;
+	strokeOrderSpinBox = new QDoubleSpinBox;
+	strokeOrderSlider = new QSlider(Qt::Horizontal);
+	strokeOrderSpinBox->setMinimumWidth(70);
+	strokeOrderSpinBox->setSingleStep(0.01);
+	strokeOrderSpinBox->setRange(0.01, 1.0);
+	strokeOrderSpinBox->setValue(0.1);
+	strokeOrderSlider->setRange(strokeOrderSpinBox->minimum() * sliderValueOffset, strokeOrderSpinBox->maximum() * sliderValueOffset);
+	strokeOrderSlider->setValue(strokeOrderSpinBox->value() * sliderValueOffset);
+	hl5->addWidget(new QLabel("Stroke Order Offset :"));
+	hl5->addStretch(0);
+	hl5->addWidget(strokeOrderSpinBox);
+	connect(strokeOrderSpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(StrokeOrderOffsetChanged(double)));
+	connect(strokeOrderSpinBox, SIGNAL(valueChanged(double)), this, SLOT(valueChanged_StrokeOrderSpinBox(double)));
+	connect(strokeOrderSlider, SIGNAL(valueChanged(int)), this, SLOT(valueChanged_StrokeOrderSlider(int)));
+
 	// Main layout
 	QVBoxLayout* layout = new QVBoxLayout;
 	layout->addLayout(hl1);
@@ -536,6 +554,8 @@ EmbeddingToolWidget::EmbeddingToolWidget( QWidget* parent /*= 0*/ )
 	layout->addWidget(levelOffsetSlider);
 	layout->addLayout(hl4);
 	layout->addWidget(strokeStepSlider);
+	layout->addLayout(hl5);
+	layout->addWidget(strokeOrderSlider);
 	layout->addStretch(0);
 	setLayout(layout);
 }
@@ -556,6 +576,7 @@ void EmbeddingToolWidget::OnReset()
 	emit LevelChanged(levelSetSpinBox->value());
 	emit LevelOffsetChanged(levelOffsetSpinBox->value());
 	emit StrokeStepChanged(strokeStepSpinBox->value());
+	emit StrokeOrderOffsetChanged(strokeOrderSpinBox->value());
 }
 
 void EmbeddingToolWidget::valueChanged_LevelSetSlider( int n )
@@ -568,6 +589,11 @@ void EmbeddingToolWidget::valueChanged_LevelOffsetSlider( int n )
 	levelOffsetSpinBox->setValue((double)n / sliderValueOffset);
 }
 
+void EmbeddingToolWidget::valueChanged_StrokeOrderSlider( int n )
+{
+	strokeOrderSpinBox->setValue((double)n / sliderValueOffset);
+}
+
 void EmbeddingToolWidget::valueChanged_LevelSetSpinBox( double d )
 {
 	levelSetSlider->setValue((int)(d * sliderValueOffset));
@@ -576,6 +602,11 @@ void EmbeddingToolWidget::valueChanged_LevelSetSpinBox( double d )
 void EmbeddingToolWidget::valueChanged_LevelOffsetSpinBox( double d )
 {
 	levelOffsetSlider->setValue((int)(d * sliderValueOffset));
+}
+
+void EmbeddingToolWidget::valueChanged_StrokeOrderSpinBox( double d )
+{
+	strokeOrderSlider->setValue((int)(d * sliderValueOffset));
 }
 
 // ------------------------------------------------------------
@@ -702,7 +733,7 @@ PenToolWidget::PenToolWidget( QWidget* parent /*= 0*/ )
 	QHBoxLayout* hl2 = new QHBoxLayout;
 	sizeSpinBox = new QSpinBox;
 	sizeSlider = new QSlider(Qt::Horizontal);
-	sizeSpinBox->setMinimumWidth(75);
+	sizeSpinBox->setMinimumWidth(70);
 	sizeSpinBox->setRange(1, 50);
 	sizeSpinBox->setValue(10);
 	sizeSlider->setRange(sizeSpinBox->minimum(), sizeSpinBox->maximum());
@@ -718,7 +749,7 @@ PenToolWidget::PenToolWidget( QWidget* parent /*= 0*/ )
 	QHBoxLayout* hl3 = new QHBoxLayout;
 	opacitySpinBox = new QSpinBox;
 	opacitySlider = new QSlider(Qt::Horizontal);
-	opacitySpinBox->setMinimumWidth(75);
+	opacitySpinBox->setMinimumWidth(70);
 	opacitySpinBox->setRange(0, 100);
 	opacitySpinBox->setValue(100);
 	opacitySpinBox->setSuffix("%");
@@ -736,7 +767,7 @@ PenToolWidget::PenToolWidget( QWidget* parent /*= 0*/ )
 	QHBoxLayout* hl4 = new QHBoxLayout;
 	spacingSpinBox = new QDoubleSpinBox;
 	spacingSlider = new QSlider(Qt::Horizontal);
-	spacingSpinBox->setMinimumWidth(75);
+	spacingSpinBox->setMinimumWidth(70);
 	spacingSpinBox->setRange(0.01, 1.0);
 	spacingSpinBox->setValue(0.5);
 	spacingSpinBox->setSingleStep(0.01);
