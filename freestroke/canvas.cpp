@@ -265,11 +265,6 @@ void Canvas::OnDraw()
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	if (enableBackgroundTexture)
-	{
-		DrawBackground();
-	}
-
 	// ------------------------------------------------------------
 
 	const float base = 200.0f;
@@ -296,57 +291,12 @@ void Canvas::OnDraw()
 	// ------------------------------------------------------------
 
 	//
-	// Proxy model rendering
+	// Rendering
 	//
 
-	if (enableWireframe)
-	{
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	}
-
-	renderShader->Begin();
-	renderShader->SetUniformMatrix4f("mvpMatrix", mvpMatrix);
-	renderShader->SetUniformMatrix3f("normalMatrix", glm::mat3(glm::transpose(glm::inverse(mvMatrix))));
-	renderShader->SetUniform4f("diffuseColor", glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
-	renderShader->SetUniform4f("emissionColor", glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
-	renderShader->SetUniform4f("lightDir", glm::vec4(0.2f, 0.4f, 0.6f, 0.0f));
-	proxyModel->Draw();
-	renderShader->End();
-
-	if (enableWireframe)
-	{
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	}
-
-	// ------------------------------------------------------------
-
-	//
-	// AABB rendering
-	//
-
-	if (enableAABB)
-	{
-		flatShader->Begin();
-		flatShader->SetUniformMatrix4f("mvpMatrix", mvpMatrix);
-		flatShader->SetUniform4f("color", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
-		proxyModel->DrawAABB();
-		flatShader->End();
-	}
-
-	// ------------------------------------------------------------
-
-	//
-	// Grid rendering
-	//
-
-	if (enableGrid) DrawGrid(mvpMatrix);
-
-	// ------------------------------------------------------------
-
-	//
-	// Stroke rendering
-	//
-
+	DrawBackground();
+	DrawGrid(mvpMatrix);
+	DrawProxyObject();
 	DrawStrokes();
 	DrawCurrentStroke();
 
@@ -358,6 +308,8 @@ void Canvas::OnDraw()
 
 void Canvas::DrawGrid(const glm::mat4& mvpMatrix)
 {
+	if (!enableGrid) return;
+
 	flatShader->Begin();
 	flatShader->SetUniformMatrix4f("mvpMatrix", mvpMatrix);
 	flatShader->SetUniform4f("color", glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
@@ -391,7 +343,7 @@ void Canvas::DrawGrid(const glm::mat4& mvpMatrix)
 
 void Canvas::DrawBackground()
 {
-	if (backgroundTexture)
+	if (enableBackgroundTexture && backgroundTexture)
 	{
 		glDisable(GL_DEPTH_TEST);
 		flatTexShader->Begin();
@@ -408,6 +360,7 @@ void Canvas::DrawStrokes()
 {
 	if (strokeList.size() == 0)
 	{
+		emit StrokeStateChanged(0, 0);
 		return;
 	}
 
@@ -595,6 +548,11 @@ void Canvas::OnToggleCurrentStrokeLine( int state )
 	enableCurrentStrokeLine = state == Qt::Checked;
 }
 
+void Canvas::OnToggleProxyObjectCheckBox( int state )
+{
+	enableProxyObject = state == Qt::Checked;
+}
+
 void Canvas::OnToolChanged( int id )
 {
 	if (id < 0 || TOOL_NUM <= id)
@@ -672,6 +630,45 @@ void Canvas::OnBrushOpacityChanged( int opacity )
 void Canvas::OnBrushSpacingChanged( double spacing )
 {
 	brushSpacing = (float)spacing;
+}
+
+void Canvas::DrawProxyObject()
+{
+	// Proxy object rendering
+	if (enableProxyObject)
+	{
+		if (enableWireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
+
+		renderShader->Begin();
+		renderShader->SetUniformMatrix4f("mvpMatrix", mvpMatrix);
+		renderShader->SetUniformMatrix3f("normalMatrix", glm::mat3(glm::transpose(glm::inverse(mvMatrix))));
+		renderShader->SetUniform4f("diffuseColor", glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
+		renderShader->SetUniform4f("emissionColor", glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
+		renderShader->SetUniform4f("lightDir", glm::vec4(0.2f, 0.4f, 0.6f, 0.0f));
+		proxyModel->Draw();
+		renderShader->End();
+
+		if (enableWireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+
+	// AABB rendering
+	if (enableAABB)
+	{
+		flatShader->Begin();
+		flatShader->SetUniformMatrix4f("mvpMatrix", mvpMatrix);
+		flatShader->SetUniform4f("color", glm::vec4(0.5f, 0.0f, 0.0f, 1.0f));
+		proxyModel->DrawAABB();
+		flatShader->End();
+	}
+}
+
+void Canvas::OnUndoStroke()
+{
+	if (state == STATE_IDLE)
+	{
+		SAFE_DELETE(strokeList.back());
+		strokeList.pop_back();
+	}
 }
 
 // ------------------------------------------------------------

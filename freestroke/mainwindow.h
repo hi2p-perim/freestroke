@@ -37,6 +37,7 @@ private slots:
 signals:
 
 	void ResetDockWidgets();
+	void UndoStroke();
 
 protected:
 
@@ -117,6 +118,7 @@ signals:
 	void ToggleParticle(int state);
 	void ToggleStrokeLine(int state);
 	void ToggleCurrentStrokeLine(int state);
+	void ToggleProxyObjectCheckBox(int state);
 	void ResetViewButtonClicked();
 	void ToggleBackground(int state);
 	void ChangeBackgroundImage(QString path);
@@ -129,6 +131,7 @@ private:
 	QCheckBox* particleCheckBox;
 	QCheckBox* strokeLineCheckBox;
 	QCheckBox* currentStrokeLineCheckBox;
+	QCheckBox* proxyObjectCheckBox;
 
 	QCheckBox* backgroundCheckBox;
 	QPushButton* findBackgroundImageButton;

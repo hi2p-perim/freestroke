@@ -71,6 +71,8 @@ public:
 
 public slots:
 
+	void OnUndoStroke();
+
 	void OnResizeCanvas(QSize size);
 	void OnDraw();
 	void OnKeyPressed(QKeyEvent* event);
@@ -86,6 +88,7 @@ public slots:
 	void OnToggleParticle(int state);
 	void OnToggleStrokeLine(int state);
 	void OnToggleCurrentStrokeLine(int state);
+	void OnToggleProxyObjectCheckBox(int state);
 	void OnResetViewButtonClicked();
 	void OnToggleBackground(int state);
 	void OnChangeBackgroundImage(QString path);
@@ -114,6 +117,7 @@ private:
 	void DrawBackground();
 	void DrawStrokes();
 	void DrawCurrentStroke();
+	void DrawProxyObject();
 
 public:
 
@@ -157,6 +161,7 @@ public:
 	bool enableParticle;
 	bool enableStrokeLine;
 	bool enableCurrentStrokeLine;
+	bool enableProxyObject;
 
 	// Background
 	QuadMesh* quad;

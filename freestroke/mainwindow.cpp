@@ -62,7 +62,7 @@ void MainWindow::NewFile()
 	QFileDialog dialog;
 	dialog.setFileMode(QFileDialog::ExistingFile);
 	dialog.setNameFilter("OBJ Models (*.obj)");
-	dialog.setWindowTitle("Select a proxy model");
+	dialog.setWindowTitle("Select a proxy object");
 	if (!dialog.exec())
 	{
 		return;
@@ -103,11 +103,12 @@ void MainWindow::SaveFile()
 
 void MainWindow::About()
 {
-	statusBar()->showMessage("About");
+	QMessageBox::about(this, appTitle, appTitle + " version " + appVersion);
 }
 
 void MainWindow::Undo()
 {
+	emit UndoStroke();
 	statusBar()->showMessage("Undo");
 }
 
@@ -277,6 +278,9 @@ int MainWindow::SaveOrDiscardChanges()
 
 void MainWindow::InitCanvas()
 {
+	// Undo
+	connect(this, SIGNAL(UndoStroke()), canvas, SLOT(OnUndoStroke()));
+
 	// View size changed
 	connect(graphicsView, SIGNAL(ResizeCanvas(QSize)), canvas, SLOT(OnResizeCanvas(QSize)));
 
@@ -300,6 +304,7 @@ void MainWindow::InitCanvas()
 	connect(canvasManipWidget, SIGNAL(ToggleParticle(int)), canvas, SLOT(OnToggleParticle(int)));
 	connect(canvasManipWidget, SIGNAL(ToggleStrokeLine(int)), canvas, SLOT(OnToggleStrokeLine(int)));
 	connect(canvasManipWidget, SIGNAL(ToggleCurrentStrokeLine(int)), canvas, SLOT(OnToggleCurrentStrokeLine(int)));
+	connect(canvasManipWidget, SIGNAL(ToggleProxyObjectCheckBox(int)), canvas, SLOT(OnToggleProxyObjectCheckBox(int)));
 	connect(canvasManipWidget, SIGNAL(ResetViewButtonClicked()), canvas, SLOT(OnResetViewButtonClicked()));
 	connect(canvasManipWidget, SIGNAL(ToggleBackground(int)), canvas, SLOT(OnToggleBackground(int)));
 	connect(canvasManipWidget, SIGNAL(ChangeBackgroundImage(QString)), canvas, SLOT(OnChangeBackgroundImage(QString)));
@@ -352,20 +357,24 @@ CanvasManipulatorWidget::CanvasManipulatorWidget( QWidget *parent /*= 0*/ )
 	particleCheckBox = new QCheckBox("Particle");
 	strokeLineCheckBox = new QCheckBox("Stroke");
 	currentStrokeLineCheckBox = new QCheckBox("Current Stroke");
+	proxyObjectCheckBox = new QCheckBox("Proxy Object");
 	gl1->addWidget(wireframeCheckBox, 0, 0);
 	gl1->addWidget(aabbCheckBox, 0, 1);
 	gl1->addWidget(gridCheckBox, 1, 0);
 	gl1->addWidget(particleCheckBox, 1, 1);
-	gl1->addWidget(strokeLineCheckBox, 2, 0);
-	gl1->addWidget(currentStrokeLineCheckBox, 2, 1);
+	gl1->addWidget(currentStrokeLineCheckBox, 2, 0);
+	gl1->addWidget(strokeLineCheckBox, 2, 1);
+	gl1->addWidget(proxyObjectCheckBox, 3, 0);
 	particleCheckBox->setChecked(true);
 	currentStrokeLineCheckBox->setChecked(true);
+	proxyObjectCheckBox->setChecked(true);
 	connect(wireframeCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleWireframe(int)));
 	connect(aabbCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleAABB(int)));
 	connect(gridCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleGrid(int)));
 	connect(particleCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleParticle(int)));
 	connect(strokeLineCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleStrokeLine(int)));
 	connect(currentStrokeLineCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleCurrentStrokeLine(int)));
+	connect(proxyObjectCheckBox, SIGNAL(stateChanged(int)), this, SIGNAL(ToggleProxyObjectCheckBox(int)));
 
 	// Reset view
 	QPushButton* resetViewButton = new QPushButton("Reset View");
@@ -410,6 +419,7 @@ void CanvasManipulatorWidget::OnReset()
 	emit ToggleParticle(particleCheckBox->checkState());
 	emit ToggleStrokeLine(strokeLineCheckBox->checkState());
 	emit ToggleCurrentStrokeLine(currentStrokeLineCheckBox->checkState());
+	emit ToggleProxyObjectCheckBox(proxyObjectCheckBox->checkState());
 	emit ToggleBackground(backgroundCheckBox->checkState());
 	emit ChangeBackgroundImage(backgroundImagePath);
 }
