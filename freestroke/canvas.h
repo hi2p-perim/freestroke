@@ -10,12 +10,37 @@ class Texture2D;
 class Texture2DArray;
 class QuadMesh;
 
+namespace boost
+{
+	namespace serialization 
+	{
+
+		template <class Archive>
+		void serialize(Archive& ar, glm::vec3& v, const unsigned int version)
+		{
+			ar & v.x & v.y & v.z;
+		}
+
+		template <class Archive>
+		void serialize(Archive& ar, glm::vec4& v, const unsigned int version)
+		{
+			ar & v.x & v.y & v.z & v.w;
+		}
+
+	}
+}
+
 /*!
 	Stroke point.
 	The structure describes the stroke point of the embedded stroke.
 */
 struct StrokePoint
 {
+
+	StrokePoint()
+	{
+
+	}
 
 	StrokePoint(const glm::vec3& position, const glm::vec4& color, int id, float size, int guid)
 		: position(position)
@@ -32,6 +57,15 @@ struct StrokePoint
 	int id;				//!< Brush ID.
 	float size;			//!< Brush size in the world space.
 	int guid;			//!< GUID assigned for each stroke.	
+
+private:
+
+	friend class boost::serialization::access;
+	template <class Archive>
+	void serialize(Archive& ar, const unsigned int version)
+	{
+		ar & position & color & id & size & guid;
+	}
 
 };
 
@@ -64,10 +98,13 @@ public:
 
 public:
 
-	Canvas(QString proxyGeometryPath, int width, int height);
+	Canvas();
+	Canvas(std::string proxyGeometryPath, int width, int height);
 	~Canvas();
 	State GetState() { return state; }
 	bool IsModified() { return modified; }
+	void SetModified(bool enable) { modified = enable; }
+	void Initialize();
 
 public slots:
 
@@ -120,10 +157,19 @@ private:
 	void DrawCurrentStroke();
 	void DrawProxyObject();
 
+private:
+
+	friend class boost::serialization::access;
+	template <class Archive>
+	void serialize(Archive& ar, const unsigned int version)
+	{
+		ar & proxyGeometryPath & canvasWidth & canvasHeight & strokeList;
+	}
+
 public:
 
 	// Canvas info
-	QString proxyGeometryPath;
+	std::string proxyGeometryPath;
 	bool modified;	
 	int canvasWidth;
 	int canvasHeight;
@@ -212,7 +258,8 @@ class Stroke
 {
 public:
 	
-	Stroke(Canvas* canvas, float brushSpacing, const glm::vec3& camWorldPos);
+	Stroke();
+	Stroke(Canvas* canvas, float brushSpacing);
 	void Draw();
 	bool Embed(const std::vector<StrokePoint>& points);
 
@@ -221,12 +268,20 @@ protected:
 	float SphereTrace(const glm::vec3& rayOrigin, const glm::vec3& rayDir, float level, glm::vec3& normal);
 	std::vector<float> Optimize(const std::vector<float>& ts);
 
+private:
+
+	friend class boost::serialization::access;
+	template <class Archive>
+	void serialize(Archive& ar, const unsigned int version)
+	{
+		ar & strokePoints & brushSpacing;
+	}
+
 public:
 
 	Canvas* canvas;
 	std::vector<StrokePoint> strokePoints;
 	float brushSpacing;
-	glm::vec3 camWorldPos;
 
 	// The fixed point used for the hair and feather tools
 	glm::vec3 rootPoint;

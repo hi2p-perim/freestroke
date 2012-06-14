@@ -7,18 +7,32 @@
 #include <QGLWidget>
 #include <lbfgs.h>
 
-Canvas::Canvas(QString proxyGeometryPath, int width, int height)
-	: state(STATE_IDLE)
-	, proxyGeometryPath(proxyGeometryPath)
-	, modified(false)
-	, scale(1.0f)
+Canvas::Canvas()
+{
+	// The default constructor is used for the boost serializer.
+	// After calling the constructor, the initialize function must be called.
+}
+
+Canvas::Canvas(std::string proxyGeometryPath, int width, int height)
+	: proxyGeometryPath(proxyGeometryPath)
 	, canvasWidth(width)
 	, canvasHeight(height)
-	, trans(0.0f)
-	, backgroundTexture(NULL)
 {
+	Initialize();
+}
+
+void Canvas::Initialize()
+{
+	state = STATE_IDLE;
+	modified = false;
+	scale = 1.0f;
+	trans = glm::vec3(0.0f);
+	backgroundTexture = NULL;
+
+	// ------------------------------------------------------------
+
 	// Load model
-	proxyModel = new ObjModel(proxyGeometryPath.toStdString(), 100.0f);
+	proxyModel = new ObjModel(proxyGeometryPath, 100.0f);
 	quad = new QuadMesh;
 
 	// Create shaders
@@ -199,10 +213,11 @@ void Canvas::OnMouseReleased( QGraphicsSceneMouseEvent* event )
 		{
 			if (currentStrokePoints.size() >= 2)
 			{
-				Stroke* stroke = new Stroke(this, brushSpacing, camWorldPos);
+				Stroke* stroke = new Stroke(this, brushSpacing);
 				if (stroke->Embed(currentStrokePoints))
 				{
 					strokeList.push_back(stroke);
+					SetModified(true);
 				}
 				else
 				{
@@ -672,15 +687,20 @@ void Canvas::OnUndoStroke()
 	{
 		SAFE_DELETE(strokeList.back());
 		strokeList.pop_back();
+		SetModified(true);
 	}
 }
 
 // ------------------------------------------------------------
 
-Stroke::Stroke(Canvas* canvas, float brushSpacing, const glm::vec3& camWorldPos)
+Stroke::Stroke(Canvas* canvas, float brushSpacing)
 	: canvas(canvas)
 	, brushSpacing(brushSpacing)
-	, camWorldPos(camWorldPos)
+{
+
+}
+
+Stroke::Stroke()
 {
 
 }

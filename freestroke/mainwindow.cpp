@@ -55,7 +55,6 @@ void MainWindow::NewFile()
 			return;
 		}
 		SetEnabledDockWidgets(false);
-		SAFE_DELETE(canvas);
 	}
 
 	// Load proxy geometry
@@ -68,11 +67,13 @@ void MainWindow::NewFile()
 		return;
 	}
 
+	SAFE_DELETE(canvas);
+
 	QString file = dialog.selectedFiles()[0];
 
 	try
 	{
-		canvas = new Canvas(file, glscene->width(), glscene->height());
+		canvas = new Canvas(file.toStdString(), glscene->width(), glscene->height());
 	}
 	catch (const Exception& e)
 	{
@@ -88,17 +89,65 @@ void MainWindow::NewFile()
 	}
 
 	InitCanvas();
+	canvas->SetModified(true);
 	statusBar()->showMessage("Created a new canvas with a proxy object " + file);
 }
 
 void MainWindow::OpenFile()
 {
-	statusBar()->showMessage("OpenFile");
+	if (canvas && canvas->IsModified())
+	{
+		int ret = SaveOrDiscardChanges();
+		if (ret == QMessageBox::Cancel)
+		{
+			return;
+		}
+		SetEnabledDockWidgets(false);
+	}
+
+	QFileDialog dialog;
+	dialog.setFileMode(QFileDialog::ExistingFile);
+	dialog.setNameFilter("Freestroke file (*.xml)");
+	dialog.setWindowTitle("Select a file");
+	if (!dialog.exec())
+	{
+		return;
+	}
+
+	SAFE_DELETE(canvas);
+
+	QString file = dialog.selectedFiles()[0];
+	std::ifstream ifs(file.toStdString());
+	boost::archive::text_iarchive ia(ifs);
+
+	canvas = new Canvas;
+	ia >> *canvas;
+	canvas->Initialize();
+	InitCanvas();
+
+	statusBar()->showMessage("OpenFile " + file);
 }
 
 void MainWindow::SaveFile()
 {
-	statusBar()->showMessage("SaveFile");
+	QFileDialog dialog;
+	dialog.setAcceptMode(QFileDialog::AcceptSave);
+	dialog.setNameFilter("Freestroke file (*.xml)");
+	dialog.setWindowTitle("Select a file");
+	if (!dialog.exec())
+	{
+		return;
+	}
+
+	QString file = dialog.selectedFiles()[0];
+	std::ofstream ofs(file.toStdString());
+	boost::archive::text_oarchive oa(ofs);
+
+	oa << *canvas;
+
+	ofs.close();
+	statusBar()->showMessage("SaveFile " + file);
+	canvas->SetModified(false);
 }
 
 void MainWindow::About()
