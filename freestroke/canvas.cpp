@@ -685,9 +685,12 @@ void Canvas::OnUndoStroke()
 {
 	if (state == STATE_IDLE)
 	{
-		SAFE_DELETE(strokeList.back());
-		strokeList.pop_back();
-		SetModified(true);
+		if (strokeList.size() > 0)
+		{
+			SAFE_DELETE(strokeList.back());
+			strokeList.pop_back();
+			SetModified(true);
+		}
 	}
 }
 

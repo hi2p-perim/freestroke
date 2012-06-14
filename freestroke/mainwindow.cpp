@@ -491,7 +491,7 @@ void CanvasManipulatorWidget::clicked_FindBackgroundImageButton()
 {
 	QFileDialog dialog;
 	dialog.setFileMode(QFileDialog::ExistingFile);
-	dialog.setNameFilter("Image (*.png)");
+	dialog.setNameFilter("Image (*.png *.jpg)");
 	dialog.setWindowTitle("Select a background image");
 	if (dialog.exec())
 	{
