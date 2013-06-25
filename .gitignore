@@ -26,7 +26,6 @@
 *.unsuccessfulbuild
 ipch/
 obj/
-[Bb]in
 [Ll]ib
 [Dd]ebug*/
 [Rr]elease*/
@@ -57,5 +56,7 @@ packages/
 #Project specific
 misc/
 external/
-bin/
 GeneratedFiles/
+*.dll
+*.exe
+*.xml
