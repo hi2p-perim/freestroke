@@ -3,7 +3,6 @@
 *.DS_Store
 
 #Visual Studio files
-*.[Oo]bj
 *.user
 *.aps
 *.pch
@@ -25,7 +24,6 @@
 *.opensdf
 *.unsuccessfulbuild
 ipch/
-obj/
 [Ll]ib
 [Dd]ebug*/
 [Rr]elease*/
@@ -60,4 +58,3 @@ external/
 GeneratedFiles/
 *.dll
 *.exe
-*.xml
