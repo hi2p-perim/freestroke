@@ -1,22 +1,31 @@
-- Introduction
+Freestroke
+=====
 
-Freestroke is the example implementation of the OverCoat:
+![](https://github.com/hi2p-perim/freestroke/master/images/bunny1.png)
+![](https://github.com/hi2p-perim/freestroke/master/images/bunny2.png)
+
+Introduction
+-----
+
+Freestroke is an implementation of the OverCoat:
 http://zurich.disneyresearch.com/OverCoat/
 
 The program was developed in a part of the Enshu 3 class;
 the fourth year's class of the Dept. of the Information Science, University of Tokyo.
 
-- Dependency
+Dependency
+-----
 
-Qt 4.8.2
-boost 1.47
-CGAL 4.0
-FreeImage 3.15.3
-glew 1.7.0
-glm 0.9.3.B
-liblbfgs 1.10
++ Qt 4.8.2
++ boost 1.47
++ CGAL 4.0
++ FreeImage 3.15.3
++ glew 1.7.0
++ glm 0.9.3.B
++ liblbfgs 1.10
 
-- License
+License
+-----
 
 Copyright (C) 2012 Hisanari Otsu
 

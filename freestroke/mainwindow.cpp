@@ -116,16 +116,22 @@ void MainWindow::OpenFile()
 
 	SAFE_DELETE(canvas);
 
-	QString file = dialog.selectedFiles()[0];
-	std::ifstream ifs(file.toStdString());
+	QString path = dialog.selectedFiles()[0];
+
+	std::ifstream ifs(path.toStdString());
 	boost::archive::text_iarchive ia(ifs);
 
 	canvas = new Canvas;
 	ia >> *canvas;
+
+	// Retrieve full path of proxy geometry path 
+	canvas->proxyGeometryPath = QFileInfo(path).dir().absoluteFilePath(QString::fromStdString(canvas->proxyGeometryPath)).toStdString();
+	qDebug() << QString::fromStdString(canvas->proxyGeometryPath);
+
 	canvas->Initialize();
 	InitCanvas();
 
-	statusBar()->showMessage("OpenFile " + file);
+	statusBar()->showMessage("OpenFile " + path);
 }
 
 void MainWindow::SaveFile()
@@ -139,14 +145,23 @@ void MainWindow::SaveFile()
 		return;
 	}
 
-	QString file = dialog.selectedFiles()[0];
-	std::ofstream ofs(file.toStdString());
+	QString path = dialog.selectedFiles()[0];
+	
+	// Convert proxy geometry path to relative one
+	QDir projectDir = QFileInfo(path).dir();
+
+	std::string absPath = canvas->proxyGeometryPath;
+	canvas->proxyGeometryPath = projectDir.relativeFilePath(QString::fromStdString(absPath)).toStdString();
+	
+	std::ofstream ofs(path.toStdString());
 	boost::archive::text_oarchive oa(ofs);
 
 	oa << *canvas;
 
+	canvas->proxyGeometryPath = absPath;
+
 	ofs.close();
-	statusBar()->showMessage("SaveFile " + file);
+	statusBar()->showMessage("SaveFile " + path);
 	canvas->SetModified(false);
 }
 
