@@ -1,8 +1,8 @@
 Freestroke
 =====
 
-![](https://github.com/hi2p-perim/freestroke/master/images/bunny1.png)
-![](https://github.com/hi2p-perim/freestroke/master/images/bunny2.png)
+![](https://github.com/hi2p-perim/freestroke/raw/master/images/bunny1.png)
+![](https://github.com/hi2p-perim/freestroke/raw/master/images/bunny2.png)
 
 Introduction
 -----
